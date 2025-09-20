@@ -23,13 +23,18 @@ except ImportError:
             return 10
 
 from gemini_client import GeminiClient
-from agents.product_info_agent import ProductInfoAgent
-from agents.threat_intel_agent import ThreatIntelAgent
-from agents.threat_context_agent import ThreatContextAgent
-from agents.risk_analysis_agent import RiskAnalysisAgent
-from agents.controls_agent import ControlsAgent
-from agents.report_agent import ReportAgent
-from agents.reviewer_agent import ReviewerAgent
+# Import agents directly to avoid __init__.py issues
+try:
+    from agents.product_info_agent import ProductInfoAgent
+    from agents.threat_intel_agent import ThreatIntelAgent
+    from agents.threat_context_agent import ThreatContextAgent
+    from agents.risk_analysis_agent import RiskAnalysisAgent
+    from agents.controls_agent import ControlsAgent
+    from agents.report_agent import ReportAgent
+    from agents.reviewer_agent import ReviewerAgent
+except ImportError as e:
+    st.error(f"Error importing agents: {e}")
+    st.stop()
 
 # Page configuration
 st.set_page_config(
