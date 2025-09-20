@@ -158,172 +158,20 @@ class ReportAgent:
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.2);
         }}
-        .header {{
-            text-align: center;
-            border-bottom: 3px solid transparent;
-            background: linear-gradient(90deg, #667eea, #764ba2) padding-box,
-                       linear-gradient(90deg, #667eea, #764ba2) border-box;
-            border-image: linear-gradient(90deg, #667eea, #764ba2) 1;
-            padding-bottom: 40px;
-            margin-bottom: 50px;
-            position: relative;
-        }}
-        .header::after {{
-            content: '';
-            position: absolute;
-            bottom: -3px;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-        }}
-        .header h1 {{
-            color: #2c3e50;
-            font-size: 2.5em;
-            margin: 0;
-            font-weight: bold;
-        }}
-        .header h2 {{
-            color: #34495e;
-            font-size: 1.8em;
-            margin: 10px 0;
-        }}
-        .header .product {{
-            font-size: 1.2em;
-            color: #7f8c8d;
-            margin: 15px 0;
-        }}
-        .header .confidential {{
-            color: #e74c3c;
-            font-weight: bold;
-            font-size: 1.1em;
-            margin-top: 20px;
-        }}
-        h1 {{
-            color: #2c3e50;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            border-bottom: 3px solid transparent;
-            border-image: linear-gradient(90deg, #667eea, #764ba2) 1;
-            padding-bottom: 15px;
-            margin-top: 50px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }}
-        h2 {{
-            color: #34495e;
-            margin-top: 30px;
-            border-left: 4px solid #3498db;
-            padding-left: 15px;
-        }}
-        h3 {{
-            color: #2c3e50;
-            margin-top: 25px;
-        }}
-        p {{
-            margin: 15px 0;
-            text-align: justify;
-        }}
-        ul, ol {{
-            margin: 15px 0;
-            padding-left: 30px;
-        }}
-        li {{
-            margin: 8px 0;
-        }}
-        .critical {{
-            color: #c0392b;
-            font-weight: bold;
-            background-color: #fadbd8;
-            padding: 3px 8px;
-            border-radius: 4px;
-            border-left: 4px solid #e74c3c;
-        }}
-        .mitre {{
-            background-color: #eaf2f8;
-            color: #1b4f72;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            font-size: 0.9em;
-        }}
-        .cvss-score {{
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            color: white;
-            font-weight: bold;
-            font-size: 0.85em;
-        }}
-        .cvss-critical {{ background-color: #8b0000; }}
-        .cvss-high {{ background-color: #dc143c; }}
-        .cvss-medium {{ background-color: #ff8c00; }}
-        .cvss-low {{ background-color: #32cd32; }}
-        .scenario {{
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 20px;
+        .diagram-container {{
             margin: 20px 0;
-        }}
-        .risk-matrix {{
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 15px 0;
-        }}
-        .footer {{
-            text-align: center;
-            margin-top: 50px;
-            padding-top: 20px;
-            border-top: 1px solid #bdc3c7;
-            color: #7f8c8d;
-            font-size: 0.9em;
-        }}
-        .mermaid {{
-            text-align: center;
-            margin: 20px 0;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 20px;
-        }}
-        @media print {{
-            body {{ background-color: white; }}
-            .container {{ box-shadow: none; }}
         }}
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {{
+            mermaid.initialize({{ startOnLoad: true }});
+        }});
+    </script>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>CYBERSECURITY THREAT ASSESSMENT</h1>
-            <h2>EXECUTIVE RISK ANALYSIS</h2>
-            <div class="product">Product: {product_name}</div>
-            <div>Assessment Date: {datetime.now().strftime("%B %d, %Y")}</div>
-            <div class="confidential">CONFIDENTIAL - INTERNAL USE ONLY</div>
-        </div>
-        
-        <div class="content">
-            {report_content}
-        </div>
-        
-        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-        <script>
-            mermaid.initialize({{
-                startOnLoad: true,
-                theme: 'default',
-                securityLevel: 'loose'
-            }});
-        </script>
-        
-        <div class="footer">
-            <p>Confidential - {product_name} Threat Assessment - Generated on {datetime.now().strftime("%B %d, %Y at %I:%M %p")}</p>
-        </div>
+        {report_content}
     </div>
 </body>
 </html>
