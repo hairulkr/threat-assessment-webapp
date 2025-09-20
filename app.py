@@ -864,19 +864,21 @@ class ThreatModelingWebApp:
             
             # Reset button
             if st.button("🔄 New Assessment"):
-                # Reset session state safely
-                for key in ['assessment_complete', 'assessment_running', 'report_content', 
-                           'all_data', 'product_name', 'suggestions', 'selected_product', 
-                           'last_search', 'valid_products', 'current_step']:
-                    if key in st.session_state:
-                        if key == 'assessment_complete' or key == 'assessment_running':
-                            st.session_state[key] = False
-                        elif key == 'current_step':
-                            st.session_state[key] = 0
-                        elif key in ['suggestions', 'valid_products']:
-                            st.session_state[key] = []
-                        else:
-                            st.session_state[key] = None if key in ['report_content', 'all_data'] else ""
+                # Simple session state reset
+                st.session_state.assessment_complete = False
+                st.session_state.assessment_running = False
+                st.session_state.report_content = None
+                st.session_state.all_data = None
+                st.session_state.product_name = ""
+                if 'suggestions' in st.session_state:
+                    del st.session_state.suggestions
+                if 'selected_product' in st.session_state:
+                    del st.session_state.selected_product
+                if 'last_search' in st.session_state:
+                    del st.session_state.last_search
+                if 'valid_products' in st.session_state:
+                    del st.session_state.valid_products
+                st.session_state.current_step = 0
                 st.rerun()
 
 # Run the app
