@@ -1,5 +1,7 @@
 from typing import Dict, Any, List
 from mcp_client import MermaidMCPClient
+import subprocess
+import os
 
 class MCPDiagramGenerator:
     """MCP-powered diagram generator with LLM context analysis"""
@@ -19,6 +21,28 @@ class MCPDiagramGenerator:
         </div>
         """
     
+    def generate_mermaid_image(self, diagram_code: str, scenario_id: str) -> str:
+        """Generate an image from Mermaid diagram code using Mermaid CLI"""
+        diagrams_dir = "reports/diagrams"
+        os.makedirs(diagrams_dir, exist_ok=True)
+
+        # File paths
+        mermaid_file = os.path.join(diagrams_dir, f"scenario_{scenario_id}.mmd")
+        image_file = os.path.join(diagrams_dir, f"scenario_{scenario_id}.png")
+
+        # Write the Mermaid code to a file
+        with open(mermaid_file, "w") as file:
+            file.write(diagram_code)
+
+        # Generate the image using Mermaid CLI
+        try:
+            subprocess.run([
+                "mmdc", "-i", mermaid_file, "-o", image_file
+            ], check=True)
+            return image_file
+        except subprocess.CalledProcessError as e:
+            print(f"Mermaid CLI failed: {e}")
+            return None
 
     
     async def insert_scenario_diagrams(self, threats: List[Dict[str, Any]], product_name: str, report_content: str) -> str:
@@ -66,26 +90,25 @@ class MCPDiagramGenerator:
     
     async def generate_scenario_diagram(self, scenario_text: str, scenario_id: str, threats: List[Dict[str, Any]], product_name: str) -> str:
         """Generate attack flow diagram for a specific scenario"""
-        
         try:
             # Parse attack steps directly from scenario text
             import re
-            
+
             # Extract steps with MITRE techniques
             step_pattern = r'Step \d+:([^(]+)\(([^)]+)\)'
             steps = re.findall(step_pattern, scenario_text)
-            
+
             if not steps:
                 # Fallback: extract any numbered steps
                 step_pattern = r'Step \d+:([^\n]+)'
                 raw_steps = re.findall(step_pattern, scenario_text)
                 steps = [(step.strip(), 'T????') for step in raw_steps]
-            
+
             # Generate custom Mermaid diagram based on actual steps
             mermaid_code = self.generate_custom_attack_flow(steps, scenario_id, product_name)
-            
+
             return self.generate_mermaid_html(mermaid_code, f"🎯 Attack Flow - Scenario {scenario_id}")
-            
+
         except Exception as e:
             print(f"Scenario {scenario_id} diagram failed: {e}")
             return self.generate_mermaid_html(
