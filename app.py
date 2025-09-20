@@ -165,7 +165,8 @@ class ThreatModelingWebApp:
             'last_search': "",
             'valid_products': [],
             'assessment_running': False,
-            'usage_tracker': DailyUsageTracker()
+            'usage_tracker': DailyUsageTracker(),
+            'show_methodology': False
         }
         
         for key, value in defaults.items():
@@ -600,21 +601,27 @@ class ThreatModelingWebApp:
             st.markdown("---")
             st.markdown("### 📚 Documentation")
             
-            # Methodology link
-            methodology_path = os.path.join(os.path.dirname(__file__), "methodology.html")
-            if os.path.exists(methodology_path):
-                with open(methodology_path, 'r', encoding='utf-8') as f:
-                    methodology_content = f.read()
+            # Methodology documentation
+            if st.button("📋 View Methodology", use_container_width=True):
+                st.session_state.show_methodology = True
+                st.rerun()
+            
+            # Show methodology in sidebar if requested
+            if st.session_state.get('show_methodology', False):
+                if st.button("❌ Close Methodology", use_container_width=True):
+                    st.session_state.show_methodology = False
+                    st.rerun()
                 
-                if st.button("📋 View Methodology", use_container_width=True):
-                    # Create a new window/tab with methodology
-                    st.components.v1.html(f"""
-                    <script>
-                        window.open('data:text/html;charset=utf-8,' + encodeURIComponent(`{methodology_content}`), '_blank');
-                    </script>
-                    """, height=0)
-            else:
-                st.info("📋 Methodology documentation available")
+                methodology_path = os.path.join(os.path.dirname(__file__), "methodology.html")
+                if os.path.exists(methodology_path):
+                    with open(methodology_path, 'r', encoding='utf-8') as f:
+                        methodology_content = f.read()
+                    
+                    # Display methodology in an expander
+                    with st.expander("📋 Methodology Documentation", expanded=True):
+                        st.components.v1.html(methodology_content, height=600, scrolling=True)
+                else:
+                    st.error("Methodology file not found")
         
         # Main content area
         col1, col2 = st.columns([2, 1])
