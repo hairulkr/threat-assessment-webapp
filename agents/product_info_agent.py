@@ -50,27 +50,9 @@ class ProductInfoAgent:
             print(f"CPE search error: {e}")
             return []
     
-    async def get_product_suggestions(self, user_input: str) -> List[Dict[str, Any]]:
-        """Get product suggestions with CVE validation"""
-        if len(user_input) < 2:
-            return []
-        
-        # Get CPE suggestions
-        cpe_results = await self.search_cpe_products(user_input)
-        
-        # Test each suggestion for CVE availability
-        validated_suggestions = []
-        for product_info in cpe_results:
-            cve_info = await self.test_cve_availability(product_info["name"])
-            if cve_info["has_cves"]:
-                validated_suggestions.append({
-                    "name": product_info["name"],
-                    "cve_count": cve_info["total_cves"],
-                    "vendor": product_info.get("vendor", ""),
-                    "source": "CPE Database"
-                })
-        
-        return validated_suggestions[:5]
+    async def get_product_suggestions(self, user_input: str) -> List[str]:
+        """Get product suggestions using LLM - more flexible than CPE database"""
+        return await self.smart_product_completion(user_input)
     
     async def test_cve_availability(self, product_name: str) -> Dict[str, Any]:
         """Test if product has CVEs available"""

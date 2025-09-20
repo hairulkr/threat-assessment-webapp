@@ -663,11 +663,13 @@ class ThreatModelingWebApp:
                         api_key = os.getenv('GEMINI_API_KEY')
                     
                     if api_key:
-                        with st.status("🔍 Searching CPE database...", expanded=False):
+                        with st.status("🤖 AI is completing your input...", expanded=False):
                             llm = GeminiClient(api_key)
                             product_agent = ProductInfoAgent(llm)
                             try:
-                                suggestions = asyncio.run(product_agent.get_product_suggestions(product_input))
+                                suggestions = asyncio.run(product_agent.smart_product_completion(product_input))
+                                # Convert to dict format for consistency
+                                suggestions = [{'name': s, 'source': 'AI Completion'} for s in suggestions]
                             except Exception as e:
                                 st.error(f"Error getting suggestions: {e}")
                                 suggestions = []
@@ -676,7 +678,7 @@ class ThreatModelingWebApp:
                 
                 # Display suggestions if available
                 if 'suggestions' in st.session_state and st.session_state.suggestions:
-                    st.success(f"✅ **Found {len(st.session_state.suggestions)} products with CVE data:**")
+                    st.success(f"✅ **Found {len(st.session_state.suggestions)} product suggestions:**")
                     
                     # Display suggestions as clickable buttons
                     cols = st.columns(min(len(st.session_state.suggestions), 2))
@@ -685,14 +687,13 @@ class ThreatModelingWebApp:
                             # Handle both dict and string formats for backward compatibility
                             if isinstance(suggestion, dict):
                                 name = suggestion['name']
-                                cve_count = suggestion.get('cve_count', 0)
-                                source = suggestion.get('source', 'Database')
-                                button_text = f"🎯 {name} ({cve_count} CVEs)"
+                                source = suggestion.get('source', 'AI Completion')
+                                button_text = f"🎯 {name}"
                                 help_text = f"From {source}"
                             else:
                                 name = suggestion
                                 button_text = f"🎯 {name}"
-                                help_text = "Product suggestion"
+                                help_text = "AI suggested product name"
                             
                             if st.button(
                                 button_text,
