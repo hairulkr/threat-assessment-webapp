@@ -90,14 +90,24 @@ class ProductInfoAgent:
         prompt = f"""
         User input: "{user_input}"
         
-        Complete this with exact software product names that exist in CVE databases.
+        Complete this with current, widely-used software products that are actively maintained and commonly deployed in enterprise environments. Focus on recent versions and popular market solutions.
         Return JSON array (1 result if exact, multiple if incomplete):
         ["product1", "product2", ...]
         
         Examples:
-        - "visual" -> ["Visual Studio Code", "Visual Studio 2022", "Visual Studio"]
-        - "apache" -> ["Apache Tomcat", "Apache HTTP Server", "Apache Kafka"]
-        - "microsoft" -> ["Microsoft Office", "Microsoft Windows", "Microsoft SQL Server"]
+        - "visual" -> ["Visual Studio Code", "Visual Studio 2022", "Visual Studio Community 2022"]
+        - "apache" -> ["Apache Tomcat 10", "Apache HTTP Server", "Apache Kafka"]
+        - "docker" -> ["Docker Desktop", "Docker Engine", "Docker Compose"]
+        - "node" -> ["Node.js", "Node.js LTS", "NodeJS Runtime"]
+        - "python" -> ["Python 3.11", "Python 3.12", "Python Runtime"]
+        - "react" -> ["React", "React Native", "ReactJS"]
+        
+        Prioritize:
+        - Current versions and recent releases
+        - Enterprise and business software
+        - Popular development tools and frameworks
+        - Widely deployed server software
+        - Common cloud and containerization tools
         """
         
         try:

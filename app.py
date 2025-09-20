@@ -670,14 +670,11 @@ class ThreatModelingWebApp:
                             product_agent = ProductInfoAgent(llm)
                             try:
                                 raw_suggestions = asyncio.run(product_agent.smart_product_completion(product_input))
-                                st.write(f"Debug: Raw suggestions: {raw_suggestions}")
                                 # Convert to dict format for consistency
                                 if raw_suggestions and len(raw_suggestions) > 0:
                                     suggestions = [{'name': s, 'source': 'AI Completion'} for s in raw_suggestions if s and s != product_input]
-                                    st.write(f"Debug: Processed suggestions: {suggestions}")
                                 else:
                                     suggestions = []
-                                    st.write("Debug: No suggestions generated")
                             except Exception as e:
                                 st.error(f"Error getting suggestions: {e}")
                                 suggestions = []
