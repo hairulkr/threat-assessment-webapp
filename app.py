@@ -22,8 +22,13 @@ except ImportError:
         def get_remaining_tries(self):
             return 10
 
-from gemini_client import GeminiClient
-# Import agents directly to avoid __init__.py issues
+# Import required modules with error handling
+try:
+    from gemini_client import GeminiClient
+except ImportError as e:
+    st.error(f"Error importing GeminiClient: {e}")
+    st.stop()
+
 try:
     from agents.product_info_agent import ProductInfoAgent
     from agents.threat_intel_agent import ThreatIntelAgent
