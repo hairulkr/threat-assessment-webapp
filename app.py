@@ -469,20 +469,6 @@ class ThreatModelingWebApp:
             
             for i, step in enumerate(steps, 1):
                 st.markdown(f"{i}. {step}")
-            
-            # Usage display
-            remaining = 10 - st.session_state.get('usage_count', 0)
-            st.info(f"Daily assessments remaining: {remaining}")
-            
-            # Display remaining tries in the sidebar
-            usage_tracker = DailyUsageTracker()
-            remaining_tries = usage_tracker.get_remaining_tries()
-            st.sidebar.markdown(f"""
-            ---
-            ### Remaining Assessments
-            
-            You have **{remaining_tries}** assessments left for today.
-            """)
         
         # Main content area
         col1, col2 = st.columns([2, 1])

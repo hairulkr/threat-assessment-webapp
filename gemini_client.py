@@ -1,10 +1,18 @@
 import os
 import google.generativeai as genai
 import streamlit as st
+import logging
 
 # Debug: Print version info
 print(f"google-generativeai version: {genai.__version__ if hasattr(genai, '__version__') else 'unknown'}")
 print(f"Available genai attributes: {[attr for attr in dir(genai) if not attr.startswith('_')]}")
+
+# Configure logging
+logging.basicConfig(
+    filename="llm_calls.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 class GeminiClient:
     """Gemini API client wrapper using google.generativeai package"""
@@ -28,10 +36,12 @@ class GeminiClient:
     
     async def generate(self, prompt: str, max_tokens: int = 150) -> str:
         try:
+            logging.info(f"LLM Call - Prompt: {prompt}")
             response = self.model.generate_content(prompt)
+            logging.info(f"LLM Response: {response.text}")
             return response.text
         except Exception as e:
-            print(f"Gemini API error: {e}")
+            logging.error(f"LLM Call Failed - Error: {e}")
             return "Error generating response"
 
 # Test function
