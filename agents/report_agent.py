@@ -274,22 +274,14 @@ class ReportAgent:
            - Critical risks identified
            - Immediate actions needed
         
-        2. PRODUCT OVERVIEW
-           - Technical components
-           - Attack surface
-           - Dependencies
-        
-        3. THREAT MODELING & ATTACK ANALYSIS
+        2. THREAT MODELING & ATTACK ANALYSIS
            Focus on detailed threat modeling methodology with:
            - **Recent Attack Trends:** Latest available attack patterns targeting similar tools and technologies
-           - **Similar Tool Compromises:** Analysis of recent breaches in comparable software/platforms with specific examples
-           - **Attack Surface Analysis:** Component-level risk assessment based on product architecture
            - **CVE Analysis:** Detailed vulnerability analysis with CVSS scores and exploit availability
-           - **Threat Actor TTPs:** Tactics, techniques, and procedures used against this technology stack
            
-           DO NOT include sections 3.1, 3.2, 3.3, 3.5 - focus only on threat modeling content
+           DO NOT include additional subsections - focus only on threat modeling content
         
-        4. DETAILED THREAT MODELING SCENARIOS (MAX 3)
+        3. DETAILED THREAT MODELING SCENARIOS (MAX 3)
            Create exactly 3 different types of comprehensive threat modeling scenarios based on actual threats:
            
            **Determine scenario types based on threat intelligence:**
@@ -364,7 +356,7 @@ class ReportAgent:
            
            End each scenario with: [DIAGRAM_PLACEHOLDER_SCENARIO_X]
         
-        5. SECURITY CONTROLS & MITIGATIONS
+        4. SECURITY CONTROLS & MITIGATIONS
            Map specific controls to attack steps with implementation details:
            "MFA with hardware tokens mitigates Step 4 credential reuse (Priority: HIGH, Cost: MEDIUM)"
            
@@ -393,7 +385,7 @@ class ReportAgent:
         - Use <span class="mitre"> for MITRE technique references
         """
         
-        report_content = await self.llm.generate(report_prompt, max_tokens=4000)
+        report_content = await self.llm.generate(report_prompt, max_tokens=6000)
         
         # Clean up LLM response - remove unwanted content
         report_content = self.clean_llm_response(report_content)
