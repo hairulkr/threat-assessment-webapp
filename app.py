@@ -1063,7 +1063,7 @@ class ThreatModelingWebApp:
                 keys_to_reset = [
                     'assessment_complete', 'assessment_running', 'report_content', 
                     'all_data', 'product_name', 'suggestions', 'selected_product', 
-                    'last_search', 'product_search'
+                    'last_search', 'product_search', 'last_request'
                 ]
                 
                 for key in keys_to_reset:
