@@ -1,11 +1,42 @@
+# SECURITY - Environment variables and secrets
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+config.ini
+secrets.json
+*.key
+*.pem
+*.p12
+*.pfx
+
+# SECURITY - API keys and tokens
+api_keys.txt
+tokens.txt
+credentials.json
+service-account.json
+
+# SECURITY - Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.env
 .venv/
 venv/
-reports/
 *.log
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Reports and generated content
+reports/
+*.tmp
+*.temp
+*.bak
+*.backup
