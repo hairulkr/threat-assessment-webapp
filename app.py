@@ -13,6 +13,9 @@ import base64
 from io import BytesIO
 import time
 
+# Ensure the current directory is in the Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 # Import existing agents (no changes needed)
 from gemini_client import GeminiClient
 from agents import ProductInfoAgent, ThreatIntelAgent, RiskAnalysisAgent, ControlsAgent, ReportAgent
