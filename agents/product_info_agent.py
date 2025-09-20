@@ -83,9 +83,33 @@ class ProductInfoAgent:
             }
     
     async def smart_product_completion(self, user_input: str) -> List[str]:
-        """Legacy method for backward compatibility"""
-        suggestions = await self.get_product_suggestions(user_input)
-        return [s["name"] for s in suggestions if isinstance(s, dict)]
+        """Smart product completion using LLM"""
+        if len(user_input) < 2:
+            return []
+        
+        prompt = f"""
+        User input: "{user_input}"
+        
+        Complete this with exact software product names that exist in CVE databases.
+        Return JSON array (1 result if exact, multiple if incomplete):
+        ["product1", "product2", ...]
+        
+        Examples:
+        - "visual" -> ["Visual Studio Code", "Visual Studio 2022", "Visual Studio"]
+        - "apache" -> ["Apache Tomcat", "Apache HTTP Server", "Apache Kafka"]
+        - "microsoft" -> ["Microsoft Office", "Microsoft Windows", "Microsoft SQL Server"]
+        """
+        
+        try:
+            response = await self.llm.generate(prompt, max_tokens=200)
+            json_match = re.search(r'\[.*?\]', response, re.DOTALL)
+            if json_match:
+                results = json.loads(json_match.group())
+                return results[:5] if isinstance(results, list) else []
+        except Exception as e:
+            print(f"LLM completion error: {e}")
+        
+        return [user_input]
     
     async def gather_info(self, product_name: str) -> Dict[str, Any]:
         prompt = f"Analyze the product '{product_name}' and return JSON with: name, type, components, technologies. Be concise."

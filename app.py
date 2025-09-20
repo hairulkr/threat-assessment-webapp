@@ -671,7 +671,10 @@ class ThreatModelingWebApp:
                             try:
                                 suggestions = asyncio.run(product_agent.smart_product_completion(product_input))
                                 # Convert to dict format for consistency
-                                suggestions = [{'name': s, 'source': 'AI Completion'} for s in suggestions]
+                                if suggestions and len(suggestions) > 0:
+                                    suggestions = [{'name': s, 'source': 'AI Completion'} for s in suggestions if s and s != product_input]
+                                else:
+                                    suggestions = []
                             except Exception as e:
                                 st.error(f"Error getting suggestions: {e}")
                                 suggestions = []
