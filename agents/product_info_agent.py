@@ -103,7 +103,7 @@ class ProductInfoAgent:
     async def smart_product_completion(self, user_input: str) -> List[str]:
         """Legacy method for backward compatibility"""
         suggestions = await self.get_product_suggestions(user_input)
-        return [s["name"] for s in suggestions]
+        return [s["name"] for s in suggestions if isinstance(s, dict)]
     
     async def gather_info(self, product_name: str) -> Dict[str, Any]:
         prompt = f"Analyze the product '{product_name}' and return JSON with: name, type, components, technologies. Be concise."

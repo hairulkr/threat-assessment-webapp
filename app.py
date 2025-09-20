@@ -661,7 +661,11 @@ class ThreatModelingWebApp:
                         with st.status("🔍 Searching CPE database...", expanded=False):
                             llm = GeminiClient(api_key)
                             product_agent = ProductInfoAgent(llm)
-                            suggestions = asyncio.run(product_agent.get_product_suggestions(product_input))
+                            try:
+                                suggestions = asyncio.run(product_agent.get_product_suggestions(product_input))
+                            except Exception as e:
+                                st.error(f"Error getting suggestions: {e}")
+                                suggestions = []
                             st.session_state.suggestions = suggestions
                             st.session_state.last_search = product_input
                 
@@ -673,13 +677,25 @@ class ThreatModelingWebApp:
                     cols = st.columns(min(len(st.session_state.suggestions), 2))
                     for i, suggestion in enumerate(st.session_state.suggestions):
                         with cols[i % 2]:
+                            # Handle both dict and string formats for backward compatibility
+                            if isinstance(suggestion, dict):
+                                name = suggestion['name']
+                                cve_count = suggestion.get('cve_count', 0)
+                                source = suggestion.get('source', 'Database')
+                                button_text = f"🎯 {name} ({cve_count} CVEs)"
+                                help_text = f"From {source}"
+                            else:
+                                name = suggestion
+                                button_text = f"🎯 {name}"
+                                help_text = "Product suggestion"
+                            
                             if st.button(
-                                f"🎯 {suggestion['name']} ({suggestion['cve_count']} CVEs)",
+                                button_text,
                                 key=f"suggestion_{i}",
                                 use_container_width=True,
-                                help=f"From {suggestion['source']}"
+                                help=help_text
                             ):
-                                st.session_state.selected_product = suggestion['name']
+                                st.session_state.selected_product = name
                                 st.rerun()
                 
                 elif len(product_input) > 2:
