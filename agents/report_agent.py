@@ -121,6 +121,11 @@ class ReportAgent:
             report_content = await mcp_gen.insert_scenario_diagrams(threats, product_name, report_content)
             diagrams_html = ""  # No additional diagrams section
         
+        # Call the DailyUsageTracker to decrement the count after report generation
+        from daily_usage_tracker import DailyUsageTracker
+        usage_tracker = DailyUsageTracker()
+        usage_tracker.increment_usage()
+        
         return report_content + diagrams_html
     
     def save_html_report(self, report_content: str, product_name: str) -> str:
