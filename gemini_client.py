@@ -2,6 +2,10 @@ import os
 import google.generativeai as genai
 import streamlit as st
 
+# Debug: Print version info
+print(f"google-generativeai version: {genai.__version__ if hasattr(genai, '__version__') else 'unknown'}")
+print(f"Available genai attributes: {[attr for attr in dir(genai) if not attr.startswith('_')]}")
+
 class GeminiClient:
     """Gemini API client wrapper using google.generativeai package"""
     
@@ -15,7 +19,10 @@ class GeminiClient:
             except:
                 self.api_key = os.getenv('GEMINI_API_KEY')
         
-        # Configure the API key
+        if not self.api_key:
+            raise ValueError("GEMINI_API_KEY not found in secrets or environment variables")
+        
+        # Configure the API key and initialize model
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel('gemini-1.5-flash')
     
