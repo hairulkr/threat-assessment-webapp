@@ -827,22 +827,23 @@ class ThreatModelingWebApp:
                 # Estimate height: 20px per line + 400px per diagram + base height
                 estimated_height = max(word_count * 2 + diagram_count * 400 + 500, 1000)
                 
-                # Use unique key to force re-render for new assessments
-                report_key = f"report_{st.session_state.product_name}_{hash(st.session_state.report_content[:100])}"
-                st.components.v1.html(mermaid_html, height=estimated_height, scrolling=True, key=report_key)
+                st.components.v1.html(mermaid_html, height=estimated_height, scrolling=True)
             
             # Reset button
             if st.button("🔄 New Assessment"):
-                st.session_state.assessment_complete = False
-                st.session_state.assessment_running = False
-                st.session_state.report_content = None
-                st.session_state.all_data = None
-                st.session_state.product_name = ""
-                st.session_state.suggestions = []
-                st.session_state.selected_product = ""
-                st.session_state.last_search = ""
-                st.session_state.valid_products = []
-                st.session_state.current_step = 0
+                # Reset session state safely
+                for key in ['assessment_complete', 'assessment_running', 'report_content', 
+                           'all_data', 'product_name', 'suggestions', 'selected_product', 
+                           'last_search', 'valid_products', 'current_step']:
+                    if key in st.session_state:
+                        if key == 'assessment_complete' or key == 'assessment_running':
+                            st.session_state[key] = False
+                        elif key == 'current_step':
+                            st.session_state[key] = 0
+                        elif key in ['suggestions', 'valid_products']:
+                            st.session_state[key] = []
+                        else:
+                            st.session_state[key] = None if key in ['report_content', 'all_data'] else ""
                 st.rerun()
 
 # Run the app
