@@ -129,16 +129,13 @@ class MCPDiagramGenerator:
         # Clean product name for Mermaid
         clean_product = product_name.replace('"', '').replace("'", '').replace('\n', ' ')[:30]
 
-        # Sanitize steps to remove HTML tags
-        sanitized_steps = [(re.sub(r'<[^>]*>', '', step_desc), mitre_id) for step_desc, mitre_id in steps]
-
         mermaid = f"graph LR\n    Start[\"Target: {clean_product}\"] --> Step1\n"
 
         # Generate nodes for each step
-        for i, (step_desc, mitre_id) in enumerate(sanitized_steps, 1):
+        for i, (step_desc, mitre_id) in enumerate(steps, 1):
             step_name = f"Step{i}"
             mermaid += f"    {step_name}[\"{step_desc} ({mitre_id})\"]\n"
-            if i < len(sanitized_steps):
+            if i < len(steps):
                 mermaid += f"    {step_name} --> Step{i+1}\n"
 
         return mermaid
