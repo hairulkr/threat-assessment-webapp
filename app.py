@@ -159,9 +159,13 @@ class ThreatModelingWebApp:
         """Run the threat assessment with progress tracking"""
         
         # Initialize orchestrator
-        api_key = os.getenv('GEMINI_API_KEY')
+        try:
+            api_key = st.secrets["GEMINI_API_KEY"]
+        except:
+            api_key = os.getenv('GEMINI_API_KEY')
+        
         if not api_key:
-            st.error("❌ GEMINI_API_KEY not found in environment variables")
+            st.error("❌ GEMINI_API_KEY not found in secrets or environment variables")
             return None, None
             
         llm = GeminiClient(api_key)
@@ -398,12 +402,16 @@ class ThreatModelingWebApp:
             st.header("⚙️ Configuration")
             
             # API Key status
-            api_key = os.getenv('GEMINI_API_KEY')
-            if api_key:
-                st.success("✅ Gemini API Key loaded")
-            else:
-                st.error("❌ Gemini API Key missing")
-                st.info("Add GEMINI_API_KEY to your environment variables")
+            try:
+                api_key = st.secrets["GEMINI_API_KEY"]
+                st.success("✅ Gemini API Key loaded from secrets")
+            except:
+                api_key = os.getenv('GEMINI_API_KEY')
+                if api_key:
+                    st.success("✅ Gemini API Key loaded from environment")
+                else:
+                    st.error("❌ Gemini API Key missing")
+                    st.info("Add GEMINI_API_KEY to Streamlit secrets or environment variables")
             
             st.markdown("---")
             st.markdown("### 📋 Assessment Steps")
@@ -446,7 +454,11 @@ class ThreatModelingWebApp:
                     not st.session_state.suggestions):
                     
                     # Get product suggestions
-                    api_key = os.getenv('GEMINI_API_KEY')
+                    try:
+                        api_key = st.secrets["GEMINI_API_KEY"]
+                    except:
+                        api_key = os.getenv('GEMINI_API_KEY')
+                    
                     if api_key:
                         with st.status("🤖 AI is completing your input...", expanded=False):
                             llm = GeminiClient(api_key)

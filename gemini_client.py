@@ -1,14 +1,20 @@
 import os
 import google.generativeai as genai
-from dotenv import load_dotenv
-
-load_dotenv()
+import streamlit as st
 
 class GeminiClient:
     """Gemini API client wrapper using google.genai package"""
     
     def __init__(self, api_key: str = None):
-        self.api_key = api_key or os.getenv('GEMINI_API_KEY')
+        # Try Streamlit secrets first, then environment variable
+        if api_key:
+            self.api_key = api_key
+        else:
+            try:
+                self.api_key = st.secrets["GEMINI_API_KEY"]
+            except:
+                self.api_key = os.getenv('GEMINI_API_KEY')
+        
         # Explicitly set the API key to avoid confusion with GOOGLE_API_KEY
         self.client = genai.Client(api_key=self.api_key)
     
