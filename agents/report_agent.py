@@ -106,7 +106,7 @@ class ReportAgent:
             
             # If no placeholder found, insert after scenario title
             if not replaced:
-                scenario_pattern = f"SCENARIO\s+{re.escape(scenario_id)}[^\n]*"
+                scenario_pattern = f"SCENARIO\\s+{re.escape(scenario_id)}[^\\n]*"
                 match = re.search(scenario_pattern, report_content, re.IGNORECASE)
                 if match:
                     insert_pos = match.end()
@@ -120,8 +120,8 @@ class ReportAgent:
         
         # Find the scenario start
         scenario_patterns = [
-            f"SCENARIO\s+{re.escape(scenario_id)}[^\n]*",
-            f"\d+\.\d+\s+SCENARIO\s+{re.escape(scenario_id)}[^\n]*",
+            f"SCENARIO\\s+{re.escape(scenario_id)}[^\\n]*",
+            f"\\d+\\.\\d+\\s+SCENARIO\\s+{re.escape(scenario_id)}[^\\n]*",
             re.escape(scenario_title)
         ]
         
