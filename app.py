@@ -1,0 +1,797 @@
+#!/usr/bin/env python3
+"""
+Streamlit Web App for Threat Modeling System
+Lightweight demo version for POC
+"""
+
+import streamlit as st
+import asyncio
+import os
+import sys
+from datetime import datetime
+import base64
+from io import BytesIO
+import time
+
+# Import existing agents (no changes needed)
+from gemini_client import GeminiClient
+from agents import ProductInfoAgent, ThreatIntelAgent, RiskAnalysisAgent, ControlsAgent, ReportAgent
+from agents.threat_context_agent import ThreatContextAgent
+from agents.reviewer_agent import ReviewerAgent
+
+# Page configuration
+st.set_page_config(
+    page_title="Cybersecurity Threat Assessment",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS to increase sidebar width
+st.markdown("""
+<style>
+    section[data-testid="stSidebar"] {
+        width: 280px !important;
+        min-width: 280px !important;
+    }
+    .css-1d391kg {
+        width: 280px !important;
+    }
+    .css-1lcbmhc {
+        width: 280px !important;
+    }
+    .css-17eq0hr {
+        width: 280px !important;
+    }
+    .block-container {
+        padding-top: 0rem !important;
+        margin-top: 0rem !important;
+    }
+    .main > div {
+        padding-top: 0rem !important;
+    }
+    .stApp > header {
+        display: none !important;
+    }
+    div[data-testid="stToolbar"] {
+        display: none !important;
+    }
+    .css-1rs6os, .css-18e3th9, .css-k1vhr4 {
+        padding-top: 0rem !important;
+    }
+    
+    /* Mobile Responsive Design */
+    @media (max-width: 768px) {
+        section[data-testid="stSidebar"] {
+            width: 100% !important;
+            min-width: 100% !important;
+        }
+        .main .block-container {
+            padding: 0.5rem !important;
+        }
+        .stButton > button {
+            width: 100% !important;
+            margin-bottom: 0.5rem !important;
+        }
+        .stTextInput {
+            width: 100% !important;
+        }
+        .stForm {
+            padding: 0.5rem !important;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .main .block-container {
+            padding: 0.25rem !important;
+        }
+        h1 {
+            font-size: 1.5rem !important;
+        }
+        .stButton > button {
+            font-size: 0.9rem !important;
+            padding: 0.5rem !important;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Custom CSS for professional styling
+st.markdown("""
+<style>
+    .main-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    .threat-card {
+        background: var(--secondary-background-color, #262730);
+        color: var(--text-color, #fafafa);
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+        margin: 1rem 0;
+        border: 1px solid #444;
+    }
+    [data-theme="light"] .threat-card {
+        background: #f8f9fa;
+        color: #262730;
+        border: 1px solid #dee2e6;
+    }
+
+</style>
+""", unsafe_allow_html=True)
+
+class ThreatModelingWebApp:
+    """Streamlit web interface for threat modeling"""
+    
+    def __init__(self):
+        self.setup_session_state()
+        
+    def setup_session_state(self):
+        """Initialize session state variables"""
+        if 'assessment_complete' not in st.session_state:
+            st.session_state.assessment_complete = False
+        if 'report_content' not in st.session_state:
+            st.session_state.report_content = None
+        if 'product_name' not in st.session_state:
+            st.session_state.product_name = ""
+        if 'all_data' not in st.session_state:
+            st.session_state.all_data = None
+        if 'suggestions' not in st.session_state:
+            st.session_state.suggestions = []
+        if 'selected_product' not in st.session_state:
+            st.session_state.selected_product = ""
+        if 'last_search' not in st.session_state:
+            st.session_state.last_search = ""
+        if 'valid_products' not in st.session_state:
+            st.session_state.valid_products = []
+        if 'assessment_running' not in st.session_state:
+            st.session_state.assessment_running = False
+    
+    async def run_assessment(self, product_name: str):
+        """Run the threat assessment with progress tracking"""
+        
+        # Initialize orchestrator
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            st.error("❌ GEMINI_API_KEY not found in environment variables")
+            return None, None
+            
+        llm = GeminiClient(api_key)
+        
+        # Initialize agents
+        product_agent = ProductInfoAgent(llm)
+        threat_agent = ThreatIntelAgent(llm)
+        threat_context_agent = ThreatContextAgent(llm)
+        risk_agent = RiskAnalysisAgent(llm)
+        controls_agent = ControlsAgent(llm)
+        report_agent = ReportAgent(llm)
+        reviewer_agent = ReviewerAgent(llm)
+        
+        # Progress tracking
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        status_box = st.empty()
+        
+        all_data = {
+            "product_name": product_name,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Capture print statements
+        import io
+        import contextlib
+        
+        @contextlib.contextmanager
+        def capture_prints():
+            old_stdout = sys.stdout
+            sys.stdout = buffer = io.StringIO()
+            try:
+                yield buffer
+            finally:
+                sys.stdout = old_stdout
+        
+        try:
+            # Set assessment as running
+            st.session_state.assessment_running = True
+            
+            # Step 1: Product Information
+            st.session_state.current_step = 1
+            status_text.markdown("**🔍 Step 1: Gathering product information...**")
+            progress_bar.progress(10)
+            
+            with st.spinner("🔍 Analyzing product information..."):
+                with capture_prints() as output:
+                    product_info = await product_agent.gather_info(product_name)
+            
+            status_box.code(output.getvalue() or "Product information gathered successfully")
+            all_data["product_info"] = product_info
+            
+            # Step 2: Threat Intelligence
+            st.session_state.current_step = 2
+            status_text.markdown("**🎯 Step 2: Fetching threat intelligence...**")
+            progress_bar.progress(25)
+            
+            with st.spinner("🎯 Fetching threat intelligence from databases..."):
+                with capture_prints() as output:
+                    threats = await threat_agent.fetch_recent_threats(product_info)
+            
+            status_box.code(output.getvalue() or f"Found {len(threats)} threats")
+            all_data["threats"] = threats
+            
+            # Step 3: Threat Context
+            st.session_state.current_step = 3
+            status_text.markdown("**🌐 Step 3: Enriching with web intelligence...**")
+            progress_bar.progress(40)
+            
+            with st.spinner("🌐 Enriching with web intelligence and analyzing risks..."):
+                with capture_prints() as output:
+                    context_task = threat_context_agent.enrich_threat_report(product_name, threats)
+                    risk_task = risk_agent.analyze_risks(product_info, threats)
+                    threat_context, risks = await asyncio.gather(context_task, risk_task)
+            
+            status_box.code(output.getvalue() or "Web intelligence and risk analysis completed")
+            all_data["threat_context"] = threat_context
+            all_data["risks"] = risks
+            
+            progress_bar.progress(60)
+            
+            # Step 4: Security Controls
+            st.session_state.current_step = 4
+            status_text.markdown("**🛡️ Step 4: Generating control recommendations...**")
+            
+            with st.spinner("🛡️ Generating security control recommendations..."):
+                with capture_prints() as output:
+                    controls = await controls_agent.propose_controls(risks)
+            
+            status_box.code(output.getvalue() or "Comprehensive security control framework established")
+            all_data["controls"] = controls
+            
+            progress_bar.progress(75)
+            
+            # Step 5: Expert Review & Report Generation
+            st.session_state.current_step = 5
+            status_text.markdown("**📊 Step 5: Finalizing report generation...**")
+            
+            with st.spinner("📊 Conducting expert review and generating report..."):
+                with capture_prints() as output:
+                    review_task = reviewer_agent.conduct_comprehensive_review(all_data)
+                    report_task = report_agent.generate_comprehensive_report(all_data)
+                    review_results, report_content = await asyncio.gather(review_task, report_task)
+            
+            status_box.code(output.getvalue() or "Expert review and report generation completed")
+            
+            # Check for termination
+            if review_results.get("terminate_recommended", False):
+                progress_bar.progress(100)
+                st.session_state.assessment_running = False  # Reset on termination
+                status_text.markdown("**⚠️ Analysis terminated due to low confidence data**")
+                st.warning("Analysis terminated: Low confidence threat intelligence detected. Please try a different product name.")
+                return None, None
+            
+            all_data["expert_review"] = review_results
+            
+            progress_bar.progress(100)
+            st.session_state.current_step = 6  # Completed
+            st.session_state.assessment_running = False  # Reset running state
+            status_text.markdown("**✅ Assessment completed successfully!**")
+            status_box.success("Threat assessment report generated successfully")
+            
+            return report_content, all_data
+            
+        except Exception as e:
+            st.session_state.assessment_running = False  # Reset on error
+            st.error(f"❌ Error during assessment: {str(e)}")
+            return None, None
+    
+    def display_threat_summary(self, all_data):
+        """Display threat summary cards"""
+        if not all_data or 'threats' not in all_data:
+            return
+            
+        threats = all_data['threats']
+        if not threats:
+            st.info("No specific threats found for this product.")
+            return
+            
+        st.subheader("🎯 Threat Summary")
+        
+        # Create columns for threat cards
+        cols = st.columns(min(len(threats), 3))
+        
+        for i, threat in enumerate(threats[:3]):
+            with cols[i % 3]:
+                severity = threat.get('severity', 'UNKNOWN')
+                severity_color = {
+                    'CRITICAL': '🔴',
+                    'HIGH': '🟠', 
+                    'MEDIUM': '🟡',
+                    'LOW': '🟢'
+                }.get(severity, '⚪')
+                
+                # Use Streamlit native components for better theme integration
+                with st.container():
+                    st.markdown(f"### {severity_color} {threat.get('title', 'Unknown Threat')}")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Severity", threat.get('severity', 'Unknown'))
+                    with col2:
+                        st.metric("CVSS Score", threat.get('cvss_score', 'N/A'))
+                    with col3:
+                        st.metric("CVE ID", threat.get('cve_id', 'N/A'))
+                    st.markdown("---")
+    
+    def create_pdf_download(self, content: str, filename: str):
+        """Create PDF download with multiple fallback options"""
+        from pdf_generator import create_pdf_with_weasyprint, create_simple_pdf
+        
+        # Try WeasyPrint first (best quality)
+        pdf_link = create_pdf_with_weasyprint(content, filename)
+        if pdf_link:
+            return pdf_link
+        
+        # Try simple PDF generation
+        pdf_link = create_simple_pdf(content, filename)
+        if pdf_link:
+            return pdf_link
+        
+        # Final fallback: HTML download
+        st.info("📝 Downloading as HTML report (PDF generation requires additional system libraries)")
+        b64 = base64.b64encode(content.encode()).decode()
+        href = f'<a href="data:text/html;base64,{b64}" download="{filename}">📥 Download HTML Report</a>'
+        return href
+    
+    def check_rate_limit(self):
+        """Simple rate limiting - 30 second cooldown"""
+        if 'last_request' not in st.session_state:
+            st.session_state.last_request = 0
+        
+        if time.time() - st.session_state.last_request < 30:  # 30 second cooldown
+            remaining = int(30 - (time.time() - st.session_state.last_request))
+            st.error(f"⏳ Please wait {remaining} seconds between assessments")
+            return False
+        
+        st.session_state.last_request = time.time()
+        return True
+    
+    def validate_input(self, product_name):
+        """Input validation"""
+        if len(product_name) > 50:
+            st.error("Product name too long (max 50 characters)")
+            return False
+        return True
+    
+    def check_daily_limit(self):
+        """Daily usage limit"""
+        today = datetime.now().date()
+        if 'usage_date' not in st.session_state or st.session_state.usage_date != today:
+            st.session_state.usage_count = 0
+            st.session_state.usage_date = today
+        
+        if st.session_state.usage_count >= 10:  # 10 assessments per day
+            st.error("🚫 Daily limit reached (10 assessments). Try again tomorrow.")
+            return False
+        
+        st.session_state.usage_count += 1
+        return True
+    
+    def main(self):
+        """Main Streamlit application"""
+        
+        # Header
+        st.markdown("""
+        <div class="main-header">
+            <h1>🛡️ Cybersecurity Threat Assessment</h1>
+            <p>AI-Powered Threat Modeling & Risk Analysis</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Sidebar
+        with st.sidebar:
+            st.header("⚙️ Configuration")
+            
+            # API Key status
+            api_key = os.getenv('GEMINI_API_KEY')
+            if api_key:
+                st.success("✅ Gemini API Key loaded")
+            else:
+                st.error("❌ Gemini API Key missing")
+                st.info("Add GEMINI_API_KEY to your environment variables")
+            
+            st.markdown("---")
+            st.markdown("### 📋 Assessment Steps")
+            
+            steps = [
+                "🔍 Product Analysis",
+                "🎯 Threat Intelligence", 
+                "🌐 Web Intelligence",
+                "🛡️ Control Recommendations",
+                "📊 Report Generation"
+            ]
+            
+            for i, step in enumerate(steps, 1):
+                st.markdown(f"{i}. {step}")
+            
+            # Usage display
+            remaining = 10 - st.session_state.get('usage_count', 0)
+            st.info(f"Daily assessments remaining: {remaining}")
+            
+
+        
+        # Main content area
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.header("🎯 Product Assessment")
+            
+            # Product search and suggestion
+            product_input = st.text_input(
+                "Enter Product/System Name:",
+                placeholder="e.g., Visual Studio Code, Apache Tomcat, WordPress",
+                help="Enter the name of the software product you want to assess",
+                key="product_search"
+            )
+            
+            # Search and suggestion system
+            if product_input and len(product_input) > 2:
+                if ('suggestions' not in st.session_state or 
+                    st.session_state.get('last_search') != product_input or 
+                    not st.session_state.suggestions):
+                    
+                    # Get product suggestions
+                    api_key = os.getenv('GEMINI_API_KEY')
+                    if api_key:
+                        with st.status("🤖 AI is completing your input...", expanded=False):
+                            llm = GeminiClient(api_key)
+                            product_agent = ProductInfoAgent(llm)
+                            suggestions = asyncio.run(product_agent.smart_product_completion(product_input))
+                            st.session_state.suggestions = suggestions
+                            st.session_state.last_search = product_input
+                            
+                            # Test CVE availability for each suggestion
+                            if suggestions:
+                                st.write("🔍 Testing products against CVE database...")
+                                valid_products = []
+                                for suggestion in suggestions:
+                                    cve_info = asyncio.run(product_agent.test_cve_availability(suggestion))
+                                    if cve_info["has_cves"]:
+                                        valid_products.append((suggestion, cve_info))
+                                
+                                st.session_state.valid_products = valid_products
+                
+                # Display results
+                if 'suggestions' in st.session_state and st.session_state.suggestions:
+                    st.markdown(f"💡 **Found {len(st.session_state.suggestions)} matching products**")
+                    
+                    if 'valid_products' in st.session_state and st.session_state.valid_products:
+                        st.success(f"✅ **Products with CVE data available:**")
+                        
+                        # Display valid products as buttons in columns
+                        cols = st.columns(min(len(st.session_state.valid_products), 2))
+                        for i, (product, info) in enumerate(st.session_state.valid_products):
+                            with cols[i % 2]:
+                                if st.button(
+                                    f"🎯 {product} ({info['total_cves']} CVEs)", 
+                                    key=f"valid_{i}",
+                                    use_container_width=True
+                                ):
+                                    st.session_state.selected_product = product
+                                    st.rerun()
+                        
+                        # Option to use original input
+                        if st.button(
+                            f"📝 Use original input: '{product_input}'", 
+                            key="use_original",
+                            use_container_width=True
+                        ):
+                            st.session_state.selected_product = product_input
+                            st.rerun()
+                    
+                    else:
+                        st.warning("❌ **No CVEs found for any suggested products**")
+                        st.info("🔍 **You can search for products at:**")
+                        st.markdown("""
+                        • [NVD CPE Search](https://nvd.nist.gov/products/cpe/search)
+                        • [CVE Search](https://cve.mitre.org/cve/search_cve_list.html)
+                        • [NIST NVD](https://nvd.nist.gov/vuln/search)
+                        """)
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button(
+                                f"Continue with '{product_input}'", 
+                                key="continue_original",
+                                use_container_width=True
+                            ):
+                                st.session_state.selected_product = product_input
+                                st.rerun()
+                        
+                        with col2:
+                            if st.button(
+                                "🔍 Research Product Name", 
+                                key="research_product",
+                                use_container_width=True
+                            ):
+                                # Clear all search-related session state
+                                for key in ['selected_product', 'suggestions', 'valid_products', 'last_search']:
+                                    if key in st.session_state:
+                                        del st.session_state[key]
+                                st.rerun()
+            
+            # Show assessment form only after suggestions are displayed or product selected
+            show_assessment_form = (
+                ('suggestions' in st.session_state and st.session_state.suggestions) or
+                st.session_state.get('selected_product')
+            )
+            
+            if show_assessment_form:
+                # Assessment form
+                with st.form("assessment_form"):
+                    selected_product = st.session_state.get('selected_product', product_input)
+                    
+                    final_product = st.text_input(
+                        "Confirm Product Name:",
+                        value=selected_product,
+                        help="Confirm or modify the product name for assessment"
+                    )
+                    
+                    col_a, col_b = st.columns([4, 1])
+                    with col_a:
+                        submit_button = st.form_submit_button(
+                            "🚀 Start Assessment", 
+                            type="primary",
+                            disabled=st.session_state.get('assessment_running', False)
+                        )
+                    with col_b:
+                        example_button = st.form_submit_button(
+                            "📝 Try Example",
+                            disabled=st.session_state.get('assessment_running', False)
+                        )
+                    
+                    product_name = final_product
+            else:
+                submit_button = False
+                example_button = False
+                product_name = None
+            
+            # Handle form submission with security checks
+            if submit_button and product_name:
+                if not self.check_rate_limit():
+                    st.stop()
+                if not self.validate_input(product_name):
+                    st.stop()
+                if not self.check_daily_limit():
+                    st.stop()
+                
+                st.session_state.product_name = product_name
+                report_content, all_data = asyncio.run(self.run_assessment(product_name))
+                if report_content:
+                    st.session_state.report_content = report_content
+                    st.session_state.all_data = all_data
+                    st.session_state.assessment_complete = True
+                    st.rerun()
+            
+            elif example_button:
+                if not self.check_rate_limit():
+                    st.stop()
+                if not self.check_daily_limit():
+                    st.stop()
+                
+                st.session_state.product_name = "Visual Studio Code"
+                report_content, all_data = asyncio.run(self.run_assessment("Visual Studio Code"))
+                if report_content:
+                    st.session_state.report_content = report_content
+                    st.session_state.all_data = all_data
+                    st.session_state.assessment_complete = True
+                    st.rerun()
+        
+        with col2:
+            st.header("ℹ️ About")
+            with st.container(border=True):
+                st.markdown("""
+                **📊 Official Sources:** NVD CVE Database, CISA Alerts, Microsoft Security Response, Google Security Blog
+                
+                **👥 Community Sources:** GitHub Security Advisories, Exploit Database, Packet Storm Security
+                
+                **🔍 Intelligence Sources:** MITRE ATT&CK Updates, AlienVault OTX, Shodan Internet Exposure
+                
+                **📡 Security Feeds:** Krebs on Security, Schneier on Security, Threatpost, CISA Cybersecurity Advisories
+                
+                **🤖 AI Analysis:** Risk assessment with CVSS scoring, MITRE ATT&CK mapping, security controls recommendation
+                
+                **🏆 Ranking Algorithm:**
+                - **Recency Factor:** Most recent threats prioritized first
+                - **Authority Weighting:** Official (3x), Verified (2x), Community (1x)
+                - **Relevance Scoring:** Product name match (+0.5), tech stack (+0.3), 0.4+ threshold
+                - **Severity Impact:** CVSS scores and known exploits weighted higher
+                
+                **🧮 Formula:** `Final Score = (Recency × Authority × Relevance × Severity)`
+                
+                **📊 Confidence Levels:** HIGH (7.0+), MEDIUM (4.0-6.9), LOW (<4.0)
+                """)
+            
+            if st.session_state.assessment_complete:
+                st.success("✅ Assessment Complete!")
+                
+                # Download button
+                if st.session_state.report_content:
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"{st.session_state.product_name.replace(' ', '_')}_ThreatAssessment_{timestamp}.html"
+                    
+                    download_link = self.create_pdf_download(
+                        st.session_state.report_content, 
+                        filename
+                    )
+                    st.markdown(download_link, unsafe_allow_html=True)
+        
+        # Display results if assessment is complete
+        if st.session_state.assessment_complete and st.session_state.report_content:
+            st.markdown("---")
+            
+            # Threat summary
+            self.display_threat_summary(st.session_state.all_data)
+            
+            st.markdown("---")
+            
+            # Report display
+            st.header("📊 Threat Assessment Report")
+            
+            # Display report in expandable section with Mermaid support
+            with st.expander("📋 View Full Report", expanded=True):
+                # Professional report display with dynamic height
+                mermaid_html = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                        body {{
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            background-color: #ffffff;
+                            color: #262730;
+                            margin: 0;
+                            padding: 20px;
+                            line-height: 1.6;
+                        }}
+                        .report-container {{
+                            width: calc(100vw - 40px);
+                            margin: 0;
+                            background: #ffffff;
+                            padding: 15px;
+                            box-sizing: border-box;
+                        }}
+                        h1 {{
+                            color: #2c3e50;
+                            border-bottom: 3px solid #667eea;
+                            padding-bottom: 10px;
+                            margin-bottom: 20px;
+                        }}
+                        h2 {{
+                            color: #34495e;
+                            margin-top: 30px;
+                            border-left: 4px solid #667eea;
+                            padding-left: 15px;
+                        }}
+                        h3 {{
+                            color: #2c3e50;
+                            margin-top: 25px;
+                        }}
+                        .critical {{
+                            background-color: #fee;
+                            color: #c53030;
+                            padding: 2px 6px;
+                            border-radius: 4px;
+                            font-weight: bold;
+                        }}
+                        .mitre {{
+                            background-color: #e6f3ff;
+                            color: #1a365d;
+                            padding: 2px 6px;
+                            border-radius: 3px;
+                            font-family: monospace;
+                            font-weight: bold;
+                        }}
+                        .mermaid {{
+                            text-align: center;
+                            margin: 20px 0;
+                            padding: 20px;
+                            background-color: #f8f9fa;
+                            border: 1px solid #dee2e6;
+                            border-radius: 5px;
+                        }}
+                    </style>
+                    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+                </head>
+                <body>
+                    <div class="report-container">
+                        {st.session_state.report_content}
+                    </div>
+                    
+                    <script>
+                        mermaid.initialize({{
+                            startOnLoad: true,
+                            theme: 'default',
+                            securityLevel: 'loose',
+                            themeVariables: {{
+                                background: '#ffffff',
+                                primaryColor: '#667eea',
+                                primaryTextColor: '#262730'
+                            }}
+                        }});
+                        
+                        // Dynamic height adjustment
+                        function adjustHeight() {{
+                            const body = document.body;
+                            const html = document.documentElement;
+                            const height = Math.max(
+                                body.scrollHeight,
+                                body.offsetHeight,
+                                html.clientHeight,
+                                html.scrollHeight,
+                                html.offsetHeight
+                            );
+                            
+                            window.parent.postMessage({{
+                                type: 'streamlit:setFrameHeight',
+                                height: height + 100
+                            }}, '*');
+                        }}
+                        
+                        // Adjust height after content loads
+                        window.addEventListener('load', () => {{
+                            setTimeout(adjustHeight, 500);
+                        }});
+                        
+                        // Adjust height after Mermaid renders
+                        mermaid.init().then(() => {{
+                            setTimeout(adjustHeight, 1000);
+                        }});
+                        
+                        // Periodic height adjustment for dynamic content
+                        setInterval(adjustHeight, 2000);
+                    </script>
+                </body>
+                </html>
+                """
+                
+                # Use a much larger initial height to prevent truncation
+                content_length = len(st.session_state.report_content)
+                diagram_count = st.session_state.report_content.count('mermaid')
+                estimated_height = max(content_length // 5 + (diagram_count * 500), 2000)
+                
+                # Calculate dynamic height based on content
+                content_length = len(st.session_state.report_content)
+                word_count = len(st.session_state.report_content.split())
+                diagram_count = st.session_state.report_content.count('mermaid')
+                
+                # Estimate height: 20px per line + 400px per diagram + base height
+                estimated_height = max(word_count * 2 + diagram_count * 400 + 500, 1000)
+                
+                st.components.v1.html(mermaid_html, height=estimated_height, scrolling=False)
+            
+            # Reset button
+            if st.button("🔄 New Assessment"):
+                st.session_state.assessment_complete = False
+                st.session_state.assessment_running = False
+                st.session_state.report_content = None
+                st.session_state.all_data = None
+                st.session_state.product_name = ""
+                st.session_state.suggestions = []
+                st.session_state.selected_product = ""
+                st.session_state.last_search = ""
+                st.session_state.valid_products = []
+                st.session_state.current_step = 0
+                st.rerun()
+
+# Run the app
+if __name__ == "__main__":
+    app = ThreatModelingWebApp()
+    app.main()
