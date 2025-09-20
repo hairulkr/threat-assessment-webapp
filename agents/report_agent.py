@@ -274,14 +274,7 @@ class ReportAgent:
            - Critical risks identified
            - Immediate actions needed
         
-        2. THREAT MODELING & ATTACK ANALYSIS
-           Focus on detailed threat modeling methodology with:
-           - **Recent Attack Trends:** Latest available attack patterns targeting similar tools and technologies
-           - **CVE Analysis:** Detailed vulnerability analysis with CVSS scores and exploit availability
-           
-           DO NOT include additional subsections - focus only on threat modeling content
-        
-        3. DETAILED THREAT MODELING SCENARIOS (MAX 3)
+        2. DETAILED THREAT MODELING SCENARIOS (MAX 3)
            Create exactly 3 different types of comprehensive threat modeling scenarios based on actual threats:
            
            **Determine scenario types based on threat intelligence:**
@@ -356,7 +349,7 @@ class ReportAgent:
            
            End each scenario with: [DIAGRAM_PLACEHOLDER_SCENARIO_X]
         
-        4. SECURITY CONTROLS & MITIGATIONS
+        3. SECURITY CONTROLS & MITIGATIONS
            Map specific controls to attack steps with implementation details:
            "MFA with hardware tokens mitigates Step 4 credential reuse (Priority: HIGH, Cost: MEDIUM)"
            

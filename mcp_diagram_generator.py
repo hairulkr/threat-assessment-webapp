@@ -142,9 +142,9 @@ class MCPDiagramGenerator:
                 if phases:
                     break
             
-            # If no phases found, create threat intelligence-based attack flow
-            if not phases and threats:
-                phases = self.create_threat_based_attack_flow(threats, scenario_id)
+            # If no phases found, create scenario-specific attack flow
+            if not phases:
+                phases = self.create_scenario_specific_attack_flow(scenario_text, scenario_id, threats)
             
             # Final fallback: use standard attack phases
             if not phases:
@@ -177,27 +177,75 @@ class MCPDiagramGenerator:
         print("✅ Diagram generator ready")
         return self
     
-    def create_threat_based_attack_flow(self, threats: List[Dict[str, Any]], scenario_id: str) -> List[tuple]:
-        """Create attack flow phases based on actual threat intelligence"""
+    def create_scenario_specific_attack_flow(self, scenario_text: str, scenario_id: str, threats: List[Dict[str, Any]]) -> List[tuple]:
+        """Create attack flow phases based on scenario type and threat intelligence"""
         phases = []
         
-        # Get top threat for this scenario
-        if threats:
-            top_threat = threats[0]  # Highest ranked threat
-            cve_id = top_threat.get('cve_id', 'Unknown')
-            severity = top_threat.get('severity', 'UNKNOWN')
-            
-            # Create phases based on threat characteristics
-            if 'remote' in top_threat.get('description', '').lower():
-                phases.append((f"Remote Exploit {cve_id}", "T1190"))
-            else:
-                phases.append((f"Local Exploit {cve_id}", "T1068"))
-            
-            if severity in ['CRITICAL', 'HIGH']:
-                phases.append(("Code Execution", "T1059"))
-                phases.append(("Privilege Escalation", "T1068"))
-            
-            phases.append(("System Compromise", "T1486"))
+        # Determine scenario type from text
+        scenario_lower = scenario_text.lower()
+        
+        if 'remote code execution' in scenario_lower or 'remote exploit' in scenario_lower:
+            # Remote Code Execution Attack Flow
+            phases = [
+                ("Network Reconnaissance", "T1595"),
+                ("Remote Vulnerability Scan", "T1595.002"),
+                ("Remote Code Execution", "T1190"),
+                ("Command & Control", "T1071"),
+                ("System Compromise", "T1486")
+            ]
+        elif 'privilege escalation' in scenario_lower or 'authentication' in scenario_lower:
+            # Privilege Escalation Attack Flow
+            phases = [
+                ("Initial Access", "T1078"),
+                ("Credential Discovery", "T1552"),
+                ("Privilege Escalation", "T1068"),
+                ("Persistence", "T1053"),
+                ("Administrative Access", "T1078.003")
+            ]
+        elif 'data exfiltration' in scenario_lower or 'data exposure' in scenario_lower:
+            # Data Exfiltration Attack Flow
+            phases = [
+                ("Initial Compromise", "T1190"),
+                ("Data Discovery", "T1083"),
+                ("Data Collection", "T1005"),
+                ("Data Staging", "T1074"),
+                ("Data Exfiltration", "T1041")
+            ]
+        elif 'availability' in scenario_lower or 'denial of service' in scenario_lower:
+            # Availability Attack Flow
+            phases = [
+                ("Target Identification", "T1595"),
+                ("Resource Exhaustion", "T1499"),
+                ("Service Disruption", "T1499.004"),
+                ("System Overload", "T1499.002"),
+                ("Service Unavailable", "T1485")
+            ]
+        elif 'supply chain' in scenario_lower or 'dependency' in scenario_lower:
+            # Supply Chain Attack Flow
+            phases = [
+                ("Supply Chain Analysis", "T1195"),
+                ("Malicious Component", "T1195.002"),
+                ("Software Distribution", "T1195.001"),
+                ("Execution via Update", "T1072"),
+                ("Widespread Impact", "T1486")
+            ]
+        else:
+            # Generic attack flow based on threat intelligence
+            if threats:
+                top_threat = threats[0]
+                cve_id = top_threat.get('cve_id', 'Unknown')
+                severity = top_threat.get('severity', 'UNKNOWN')
+                
+                if 'remote' in top_threat.get('description', '').lower():
+                    phases.append((f"Remote Exploit {cve_id}", "T1190"))
+                else:
+                    phases.append((f"Local Exploit {cve_id}", "T1068"))
+                
+                phases.extend([
+                    ("Code Execution", "T1059"),
+                    ("Persistence", "T1053"),
+                    ("Impact", "T1486")
+                ])
         
         return phases if phases else []
     
