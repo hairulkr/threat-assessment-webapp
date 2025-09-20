@@ -14,62 +14,45 @@ class ReportAgent:
         os.makedirs(self.reports_dir, exist_ok=True)
     
     def determine_scenario_types(self, threats):
-        """Determine scenario types based on threat intelligence characteristics"""
+        """Determine scenario types based on specific CVE findings and threat intelligence"""
         scenario_types = []
         
         if not threats:
             return ["SCENARIO A: Generic Attack", "SCENARIO B: System Compromise", "SCENARIO C: Data Breach"]
         
-        # Analyze threat characteristics
-        has_remote_exploit = any('remote' in t.get('description', '').lower() or 
-                               'network' in t.get('description', '').lower() or
-                               t.get('cvss_score', 0) >= 7.0 for t in threats)
+        # Get top 3 threats for different scenarios
+        top_threats = threats[:3]
         
-        has_auth_issues = any('authentication' in t.get('description', '').lower() or
-                            'authorization' in t.get('description', '').lower() or
-                            'privilege' in t.get('description', '').lower() for t in threats)
+        for i, threat in enumerate(top_threats):
+            cve_id = threat.get('cve_id', 'Unknown')
+            severity = threat.get('severity', 'UNKNOWN')
+            description = threat.get('description', '').lower()
+            
+            scenario_letter = chr(65 + i)  # A, B, C
+            
+            # Create scenario based on specific CVE characteristics
+            if 'remote' in description or 'network' in description or threat.get('cvss_score', 0) >= 8.0:
+                scenario_types.append(f"SCENARIO {scenario_letter}: Remote Code Execution via {cve_id}")
+            elif 'privilege' in description or 'authentication' in description or 'authorization' in description:
+                scenario_types.append(f"SCENARIO {scenario_letter}: Privilege Escalation via {cve_id}")
+            elif 'disclosure' in description or 'exposure' in description or 'injection' in description:
+                scenario_types.append(f"SCENARIO {scenario_letter}: Data Exfiltration via {cve_id}")
+            elif 'denial' in description or 'crash' in description or 'availability' in description:
+                scenario_types.append(f"SCENARIO {scenario_letter}: Availability Attack via {cve_id}")
+            elif 'dependency' in description or 'supply' in description or 'extension' in description:
+                scenario_types.append(f"SCENARIO {scenario_letter}: Supply Chain Attack via {cve_id}")
+            else:
+                # Generic based on severity
+                if severity in ['CRITICAL', 'HIGH']:
+                    scenario_types.append(f"SCENARIO {scenario_letter}: Critical Exploitation via {cve_id}")
+                else:
+                    scenario_types.append(f"SCENARIO {scenario_letter}: System Compromise via {cve_id}")
         
-        has_data_exposure = any('disclosure' in t.get('description', '').lower() or
-                              'exposure' in t.get('description', '').lower() or
-                              'leak' in t.get('description', '').lower() or
-                              'injection' in t.get('description', '').lower() for t in threats)
-        
-        has_dos_issues = any('denial' in t.get('description', '').lower() or
-                           'crash' in t.get('description', '').lower() or
-                           'availability' in t.get('description', '').lower() for t in threats)
-        
-        has_supply_chain = any('dependency' in t.get('description', '').lower() or
-                             'supply' in t.get('description', '').lower() or
-                             'third-party' in t.get('description', '').lower() for t in threats)
-        
-        # Determine scenario types based on threat analysis
-        if has_remote_exploit:
-            scenario_types.append("SCENARIO A: Remote Code Execution Attack")
-        
-        if has_auth_issues:
-            scenario_types.append("SCENARIO B: Privilege Escalation Attack")
-        elif has_data_exposure:
-            scenario_types.append("SCENARIO B: Data Exfiltration Attack")
-        
-        if has_dos_issues:
-            scenario_types.append("SCENARIO C: Availability Attack")
-        elif has_supply_chain:
-            scenario_types.append("SCENARIO C: Supply Chain Attack")
-        elif len(scenario_types) < 2:
-            scenario_types.append("SCENARIO C: System Compromise Attack")
-        
-        # Ensure we have exactly 3 scenarios
+        # Ensure we have exactly 3 different scenarios
         if len(scenario_types) < 3:
-            remaining_types = [
-                "SCENARIO A: Remote Exploitation",
-                "SCENARIO B: Privilege Escalation", 
-                "SCENARIO C: Data Breach"
-            ]
-            for scenario_type in remaining_types:
-                if len(scenario_types) >= 3:
-                    break
-                if not any(scenario_type.split(':')[0] in existing for existing in scenario_types):
-                    scenario_types.append(scenario_type)
+            remaining_letters = ['A', 'B', 'C'][len(scenario_types):]
+            for letter in remaining_letters:
+                scenario_types.append(f"SCENARIO {letter}: Generic Attack Scenario")
         
         return scenario_types[:3]
     
@@ -274,7 +257,12 @@ class ReportAgent:
            - Critical risks identified
            - Immediate actions needed
         
-        2. DETAILED THREAT MODELING SCENARIOS (MAX 3)
+        2. THREAT INTELLIGENCE ANALYSIS
+           Focus on:
+           - **Recent Attack Trends:** Latest available attack patterns targeting this technology
+           - **CVE Analysis:** Detailed vulnerability analysis with CVSS scores and exploit availability from threat intelligence
+        
+        3. DETAILED THREAT MODELING SCENARIOS (MAX 3)
            Create exactly 3 different types of comprehensive threat modeling scenarios based on actual threats:
            
            **Determine scenario types based on threat intelligence:**
@@ -284,9 +272,12 @@ class ReportAgent:
            - If denial of service vulnerabilities: **SCENARIO D: Availability Attack**
            - If supply chain/dependency issues: **SCENARIO E: Supply Chain Attack**
            
-           **Generate these specific scenario types based on threat analysis: {scenario_types}**
+           **Generate these specific scenario types based on actual CVE findings: {scenario_types}**
            
-           For each scenario type, create a comprehensive attack chain:
+           Each scenario MUST be based on actual CVE/threat intelligence findings from the data above.
+           Create different attack scenarios using the specific CVEs and vulnerabilities found:
+           
+           For each scenario, create a comprehensive attack chain that follows the specific CVE exploitation path:
            
            **Comprehensive Threat Modeling Analysis:**
            
@@ -349,7 +340,7 @@ class ReportAgent:
            
            End each scenario with: [DIAGRAM_PLACEHOLDER_SCENARIO_X]
         
-        3. SECURITY CONTROLS & MITIGATIONS
+        4. SECURITY CONTROLS & MITIGATIONS
            Map specific controls to attack steps with implementation details:
            "MFA with hardware tokens mitigates Step 4 credential reuse (Priority: HIGH, Cost: MEDIUM)"
            
