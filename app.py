@@ -71,6 +71,19 @@ st.markdown("""
         text-align: center;
         margin: 1rem 0 2rem 0;
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Login container styling */
+    .login-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        color: white;
+        text-align: center;
+        margin: 1rem 0 2rem 0;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
     
     /* Progress bar styling */
@@ -451,32 +464,59 @@ class ThreatModelingWebApp:
 
     
     def check_authentication(self):
-        """Simple password authentication"""
+        """Password authentication with brute force protection"""
         if 'authenticated' not in st.session_state:
             st.session_state.authenticated = False
+        if 'login_attempts' not in st.session_state:
+            st.session_state.login_attempts = 0
+        if 'login_lockout_time' not in st.session_state:
+            st.session_state.login_lockout_time = 0
         
         if not st.session_state.authenticated:
             st.markdown("""
-            <div class="main-header">
+            <div class="login-container">
                 <h1>🔐 Cybersecurity Threat Assessment</h1>
                 <p>Access Required - Enter Password</p>
             </div>
             """, unsafe_allow_html=True)
             
+            # Check if locked out
+            current_time = time.time()
+            if st.session_state.login_lockout_time > current_time:
+                remaining_time = int(st.session_state.login_lockout_time - current_time)
+                st.error(f"🔒 Too many failed attempts. Try again in {remaining_time} seconds.")
+                st.stop()
+            
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
-                password = st.text_input("Enter password:", type="password", key="login_password")
-                if st.button("🚀 Login", type="primary", use_container_width=True):
-                    try:
-                        app_password = st.secrets["APP_PASSWORD"]
-                    except:
-                        app_password = os.getenv('APP_PASSWORD', 'demo123')
+                with st.container(border=True):
+                    password = st.text_input("Enter password:", type="password", key="login_password")
                     
-                    if password == app_password:
-                        st.session_state.authenticated = True
-                        st.rerun()
-                    else:
-                        st.error("❌ Invalid password")
+                    # Show remaining attempts
+                    remaining_attempts = max(0, 5 - st.session_state.login_attempts)
+                    if st.session_state.login_attempts > 0:
+                        st.warning(f"⚠️ {remaining_attempts} attempts remaining")
+                    
+                    if st.button("🚀 Login", type="primary", use_container_width=True):
+                        try:
+                            app_password = st.secrets["APP_PASSWORD"]
+                        except:
+                            app_password = os.getenv('APP_PASSWORD', 'demo123')
+                        
+                        if password == app_password:
+                            st.session_state.authenticated = True
+                            st.session_state.login_attempts = 0  # Reset on success
+                            st.rerun()
+                        else:
+                            st.session_state.login_attempts += 1
+                            
+                            if st.session_state.login_attempts >= 5:
+                                # Lock out for 5 minutes
+                                st.session_state.login_lockout_time = current_time + 300
+                                st.error("🔒 Too many failed attempts. Locked out for 5 minutes.")
+                            else:
+                                remaining = 5 - st.session_state.login_attempts
+                                st.error(f"❌ Invalid password. {remaining} attempts remaining.")
             st.stop()
     
     def main(self):
