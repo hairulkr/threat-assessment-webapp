@@ -1,14 +1,14 @@
 import json
 import asyncio
 from typing import List, Dict, Any
-from external_apis import ExternalAPIs
+from threat_intel_sources import ThreatIntelSources
 
 class ThreatIntelAgent:
-    """Real API-powered threat intelligence gathering"""
+    """Comprehensive threat intelligence gathering with 10+ sources"""
     
     def __init__(self, llm_client):
         self.llm = llm_client
-        self.apis = ExternalAPIs()
+        self.intel_sources = ThreatIntelSources()
     
     async def fetch_recent_threats(self, product_info: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Fetch real threat intelligence from external APIs"""
@@ -18,19 +18,12 @@ class ThreatIntelAgent:
         
         all_threats = []
         
-        # Run API calls in parallel for faster processing
-        async with self.apis as api_client:
-            tasks = []
-            for keyword in keywords[:2]:  # Limit API calls
-                print(f"   Searching threat databases for: {keyword}")
-                tasks.append(api_client.gather_all_threats(keyword))
-            
-            # Execute all API calls concurrently
-            if tasks:
-                threat_results = await asyncio.gather(*tasks, return_exceptions=True)
-                for result in threat_results:
-                    if isinstance(result, list):
-                        all_threats.extend(result)
+        # Use comprehensive threat intelligence sources
+        async with self.intel_sources as intel_client:
+            # Use primary product name for comprehensive intelligence gathering
+            primary_keyword = keywords[0] if keywords else product_info.get('name', '')
+            print(f"   Gathering comprehensive threat intelligence for: {primary_keyword}")
+            all_threats = await intel_client.gather_all_intel(primary_keyword)
         
         # Sort all threats by publication date (most recent first)
         from datetime import datetime
@@ -55,16 +48,19 @@ class ThreatIntelAgent:
             1 if t.get('source') == 'NVD' else 0  # NVD gets priority for same dates
         ), reverse=True)
         
-        if prioritized_threats:
-            nvd_count = len([t for t in prioritized_threats if t.get('source') == 'NVD'])
-            other_count = len(prioritized_threats) - nvd_count
-            print(f"   Found {nvd_count} NVD CVEs and {other_count} other threats")
-            if nvd_count == 0:
-                print(f"   WARNING: No NVD CVEs found despite product having CVEs in database")
-            return prioritized_threats[:3]  # Top 3 most recent threats
+        if all_threats:
+            # Threats are already filtered and prioritized by ThreatIntelSources
+            official_count = len([t for t in all_threats if t.get('authority') == 'OFFICIAL'])
+            verified_count = len([t for t in all_threats if t.get('authority') == 'VERIFIED'])
+            community_count = len([t for t in all_threats if t.get('authority') == 'COMMUNITY'])
+            
+            print(f"   📊 FINAL RESULTS: {len(all_threats)} high-confidence threats")
+            print(f"   🏢 Official: {official_count} | 🔒 Verified: {verified_count} | 👥 Community: {community_count}")
+            
+            return all_threats  # Already optimally filtered and limited
         
-        print(f"   Found {len(all_threats)} total threats")
-        return all_threats[:3]
+        print(f"   ⚠️ No relevant threats found for {product_info.get('name', 'product')}")
+        return []
     
     def _extract_keywords(self, product_info: Dict[str, Any]) -> List[str]:
         keywords = [product_info.get('name', '').lower()]
