@@ -18,6 +18,7 @@ from gemini_client import GeminiClient
 from agents import ProductInfoAgent, ThreatIntelAgent, RiskAnalysisAgent, ControlsAgent, ReportAgent
 from agents.threat_context_agent import ThreatContextAgent
 from agents.reviewer_agent import ReviewerAgent
+from daily_usage_tracker import DailyUsageTracker
 
 # Page configuration
 st.set_page_config(
@@ -473,7 +474,15 @@ class ThreatModelingWebApp:
             remaining = 10 - st.session_state.get('usage_count', 0)
             st.info(f"Daily assessments remaining: {remaining}")
             
-
+            # Display remaining tries in the sidebar
+            usage_tracker = DailyUsageTracker()
+            remaining_tries = usage_tracker.get_remaining_tries()
+            st.sidebar.markdown(f"""
+            ---
+            ### Remaining Assessments
+            
+            You have **{remaining_tries}** assessments left for today.
+            """)
         
         # Main content area
         col1, col2 = st.columns([2, 1])
