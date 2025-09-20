@@ -124,7 +124,8 @@ class ReportAgent:
         # Call the DailyUsageTracker to decrement the count after report generation
         from daily_usage_tracker import DailyUsageTracker
         usage_tracker = DailyUsageTracker()
-        usage_tracker.increment_usage()
+        if not usage_tracker.increment_usage():
+            raise Exception("Daily limit for generating reports has been reached. Please try again tomorrow.")
         
         return report_content + diagrams_html
     

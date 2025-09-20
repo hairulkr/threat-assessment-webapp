@@ -473,19 +473,20 @@ class ThreatModelingWebApp:
             for i, step in enumerate(steps, 1):
                 st.markdown(f"{i}. {step}")
             
-            # Display remaining tries in the sidebar with blue box styling
+            # Display remaining tries in the sidebar with enhanced styling
             usage_tracker = DailyUsageTracker(st.secrets["GEMINI_API_KEY"])
             remaining_tries = usage_tracker.get_remaining_tries()
-            st.markdown(f"""
+            st.sidebar.markdown(f"""
             <div style="
                 background-color: #e3f2fd;
-                padding: 10px;
-                border-radius: 5px;
+                padding: 15px;
+                border-radius: 10px;
                 margin-top: 20px;
                 text-align: center;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             ">
-                <h4 style="color: #0d47a1;">Remaining Assessments</h4>
-                <p style="font-size: 18px; color: #0d47a1;">
+                <h4 style="color: #0d47a1; font-weight: bold;">Remaining Assessments</h4>
+                <p style="font-size: 20px; color: #0d47a1; margin: 10px 0;">
                     {remaining_tries} assessments left for today
                 </p>
             </div>
