@@ -627,7 +627,7 @@ class ThreatModelingWebApp:
                     methodology_content = f.read()
                 
                 # Display methodology with full page width
-                st.components.v1.html(methodology_content, height=2000, scrolling=False)
+                st.components.v1.html(methodology_content, scrolling=False)
             else:
                 st.error("Methodology file not found")
             
