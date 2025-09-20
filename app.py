@@ -647,130 +647,70 @@ class ThreatModelingWebApp:
                 key="product_search"
             )
             
-            # Search and suggestion system
+            # CPE-based product suggestions
             if product_input and len(product_input) > 2:
                 if ('suggestions' not in st.session_state or 
-                    st.session_state.get('last_search') != product_input or 
-                    not st.session_state.suggestions):
+                    st.session_state.get('last_search') != product_input):
                     
-                    # Get product suggestions
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]
                     except:
                         api_key = os.getenv('GEMINI_API_KEY')
                     
                     if api_key:
-                        with st.status("🤖 AI is completing your input...", expanded=False):
+                        with st.status("🔍 Searching CPE database...", expanded=False):
                             llm = GeminiClient(api_key)
                             product_agent = ProductInfoAgent(llm)
-                            suggestions = asyncio.run(product_agent.smart_product_completion(product_input))
+                            suggestions = asyncio.run(product_agent.get_product_suggestions(product_input))
                             st.session_state.suggestions = suggestions
                             st.session_state.last_search = product_input
-                            
-                            # Test CVE availability for each suggestion
-                            if suggestions:
-                                st.write("🔍 Testing products against CVE database...")
-                                valid_products = []
-                                for suggestion in suggestions:
-                                    cve_info = asyncio.run(product_agent.test_cve_availability(suggestion))
-                                    if cve_info["has_cves"]:
-                                        valid_products.append((suggestion, cve_info))
-                                
-                                st.session_state.valid_products = valid_products
                 
-                # Display results
+                # Display suggestions if available
                 if 'suggestions' in st.session_state and st.session_state.suggestions:
-                    st.markdown(f"💡 **Found {len(st.session_state.suggestions)} matching products**")
+                    st.success(f"✅ **Found {len(st.session_state.suggestions)} products with CVE data:**")
                     
-                    if 'valid_products' in st.session_state and st.session_state.valid_products:
-                        st.success("✅ **Products with CVE data available:**")
-                        
-                        # Display valid products as buttons in columns
-                        cols = st.columns(min(len(st.session_state.valid_products), 2))
-                        for i, (product, info) in enumerate(st.session_state.valid_products):
-                            with cols[i % 2]:
-                                if st.button(
-                                    f"🎯 {product} ({info['total_cves']} CVEs)", 
-                                    key=f"valid_{i}",
-                                    use_container_width=True
-                                ):
-                                    st.session_state.selected_product = product
-                                    st.rerun()
-                        
-                        # Option to use original input
-                        if st.button(
-                            f"📝 Use original input: '{product_input}'", 
-                            key="use_original",
-                            use_container_width=True
-                        ):
-                            st.session_state.selected_product = product_input
-                            st.rerun()
-                    
-                    else:
-                        st.warning("❌ **No CVEs found for any suggested products**")
-                        st.info("🔍 **You can search for products at:**")
-                        st.markdown("""
-                        • [NVD CPE Search](https://nvd.nist.gov/products/cpe/search)
-                        • [CVE Search](https://cve.mitre.org/cve/search_cve_list.html)
-                        • [NIST NVD](https://nvd.nist.gov/vuln/search)
-                        """)
-                        
-                        col1_inner, col2_inner = st.columns(2)
-                        with col1_inner:
+                    # Display suggestions as clickable buttons
+                    cols = st.columns(min(len(st.session_state.suggestions), 2))
+                    for i, suggestion in enumerate(st.session_state.suggestions):
+                        with cols[i % 2]:
                             if st.button(
-                                f"Continue with '{product_input}'", 
-                                key="continue_original",
-                                use_container_width=True
+                                f"🎯 {suggestion['name']} ({suggestion['cve_count']} CVEs)",
+                                key=f"suggestion_{i}",
+                                use_container_width=True,
+                                help=f"From {suggestion['source']}"
                             ):
-                                st.session_state.selected_product = product_input
+                                st.session_state.selected_product = suggestion['name']
                                 st.rerun()
-                        
-                        with col2_inner:
-                            if st.button(
-                                "🔍 Research Product Name", 
-                                key="research_product",
-                                use_container_width=True
-                            ):
-                                # Clear search-related session state
-                                for key in ['selected_product', 'suggestions', 'valid_products', 'last_search']:
-                                    if key in st.session_state:
-                                        del st.session_state[key]
-                                st.rerun()
+                
+                elif len(product_input) > 2:
+                    st.info("💡 **No CVE data found for this product name**")
+                    st.markdown("""
+                    **Tip**: Try searching at [NVD CPE Search](https://nvd.nist.gov/products/cpe/search) for exact product names.
+                    """)
             
-            # Show assessment form
-            show_assessment_form = (
-                ('suggestions' in st.session_state and st.session_state.suggestions) or
-                st.session_state.get('selected_product')
-            )
-            
-            if show_assessment_form:
-                with st.form("assessment_form"):
-                    selected_product = st.session_state.get('selected_product', product_input)
-                    
-                    final_product = st.text_input(
-                        "Confirm Product Name:",
-                        value=selected_product,
-                        help="Confirm or modify the product name for assessment"
+            # Assessment form - always show
+            with st.form("assessment_form"):
+                # Use selected product or user input
+                final_product = st.session_state.get('selected_product', product_input)
+                
+                # Clear selected product after using it
+                if 'selected_product' in st.session_state:
+                    del st.session_state['selected_product']
+                
+                col_a, col_b = st.columns([4, 1])
+                with col_a:
+                    submit_button = st.form_submit_button(
+                        "🚀 Start Assessment", 
+                        type="primary",
+                        disabled=st.session_state.get('assessment_running', False) or not final_product
                     )
-                    
-                    col_a, col_b = st.columns([4, 1])
-                    with col_a:
-                        submit_button = st.form_submit_button(
-                            "🚀 Start Assessment", 
-                            type="primary",
-                            disabled=st.session_state.get('assessment_running', False)
-                        )
-                    with col_b:
-                        example_button = st.form_submit_button(
-                            "📝 Try Example",
-                            disabled=st.session_state.get('assessment_running', False)
-                        )
-                    
-                    product_name = final_product
-            else:
-                submit_button = False
-                example_button = False
-                product_name = None
+                with col_b:
+                    example_button = st.form_submit_button(
+                        "📝 Try Example",
+                        disabled=st.session_state.get('assessment_running', False)
+                    )
+                
+                product_name = final_product
             
             # Handle form submission
             if submit_button and product_name:
@@ -1029,7 +969,7 @@ class ThreatModelingWebApp:
                 st.session_state.product_name = ""
                 
                 # Clear search-related state
-                for key in ['suggestions', 'selected_product', 'last_search', 'valid_products']:
+                for key in ['suggestions', 'selected_product', 'last_search']:
                     if key in st.session_state:
                         del st.session_state[key]
                 
