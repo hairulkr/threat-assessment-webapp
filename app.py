@@ -49,8 +49,9 @@ st.markdown("""
     
     /* Layout adjustments */
     .block-container {
-        padding-top: 0rem !important;
+        padding-top: 1rem !important;
         margin-top: 0rem !important;
+        max-width: 100% !important;
     }
     .main > div {
         padding-top: 0rem !important;
@@ -62,16 +63,46 @@ st.markdown("""
         display: none !important;
     }
     
+    /* Hide Streamlit's default header elements */
+    .st-emotion-cache-arp25b {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    .st-emotion-cache-gi0tri {
+        display: none !important;
+    }
+    div[data-testid="stHeadingWithActionElements"] {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    div[data-testid="stHeadingWithActionElements"] h1 {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    
     /* Main header styling */
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 2rem;
         border-radius: 15px;
-        color: white;
+        color: white !important;
         text-align: center;
-        margin: 1rem 0 2rem 0;
+        margin: 0 0 2rem 0;
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
         border: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
+        z-index: 1000;
+    }
+    .main-header h1 {
+        color: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 2.5rem !important;
+    }
+    .main-header p {
+        color: rgba(255, 255, 255, 0.9) !important;
+        margin: 0.5rem 0 0 0 !important;
+        font-size: 1.1rem !important;
     }
     
     /* Login container styling */
@@ -79,11 +110,35 @@ st.markdown("""
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 2rem;
         border-radius: 15px;
-        color: white;
+        color: white !important;
         text-align: center;
-        margin: 1rem 0 2rem 0;
+        margin: 0 0 2rem 0;
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
         border: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
+        z-index: 1000;
+    }
+    .login-container h1 {
+        color: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 2.5rem !important;
+    }
+    .login-container p {
+        color: rgba(255, 255, 255, 0.9) !important;
+        margin: 0.5rem 0 0 0 !important;
+        font-size: 1.1rem !important;
+    }
+    
+    /* Ensure login page has proper spacing */
+    .login-container + * {
+        margin-top: 2rem !important;
+    }
+    
+    /* Hide any interfering elements on login page */
+    body:has(.login-container) .st-emotion-cache-arp25b,
+    body:has(.login-container) div[data-testid="stHeadingWithActionElements"] {
+        display: none !important;
     }
     
     /* Progress bar styling */
@@ -490,7 +545,13 @@ class ThreatModelingWebApp:
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
                 with st.container(border=True):
-                    password = st.text_input("Enter password:", type="password", key="login_password")
+                    password = st.text_input(
+                        "Enter password:", 
+                        type="password", 
+                        key="login_password",
+                        help="Enter your access password",
+                        autocomplete="current-password"
+                    )
                     
                     # Show remaining attempts
                     remaining_attempts = max(0, 5 - st.session_state.login_attempts)

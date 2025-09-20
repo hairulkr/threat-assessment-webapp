@@ -14,9 +14,11 @@ cookieSameSite = "strict"
 
 # Security headers
 [server.security]
-contentSecurityPolicy = "default-src 'self'; script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https:; connect-src 'self';"
+contentSecurityPolicy = "default-src 'self'; script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self';"
 referrerPolicy = "strict-origin-when-cross-origin"
 strictTransportSecurity = "max-age=31536000; includeSubDomains"
+xFrameOptions = "SAMEORIGIN"
+xContentTypeOptions = "nosniff"
 
 [browser]
 gatherUsageStats = false
