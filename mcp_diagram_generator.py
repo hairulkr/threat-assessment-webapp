@@ -103,62 +103,12 @@ class MCPDiagramGenerator:
         return report_content
     
     async def generate_scenario_diagram(self, scenario_text: str, scenario_id: str, threats: List[Dict[str, Any]], product_name: str) -> str:
-        """Generate attack flow diagram based on threat intelligence and scenario phases"""
+        """Generate attack flow diagram based on actual scenario content and phases"""
         try:
-            # Extract phases from scenario text - look for the 7-phase structure
-            phase_patterns = [
-                r'Phase (\d+):\s*([^\n]+?)\s*\(([^)]+)\)',  # Phase X: Description (MITRE)
-                r'\*\*Phase (\d+):[^*]*?\*\*([^\n]+)',  # **Phase X:** Description
-                r'Phase (\d+):[^\n]*?([A-Z][^\n]+)',  # Phase X: Description
-            ]
+            # Extract actual attack steps from scenario content
+            phases = await self.extract_actual_attack_phases(scenario_text, scenario_id, threats)
             
-            phases = []
-            
-            # Try to extract phases
-            for pattern in phase_patterns:
-                matches = re.finditer(pattern, scenario_text, re.DOTALL | re.IGNORECASE)
-                for match in matches:
-                    if len(match.groups()) >= 3:
-                        phase_num = match.group(1)
-                        phase_desc = match.group(2).strip()
-                        mitre_id = match.group(3).strip()
-                    else:
-                        phase_num = match.group(1)
-                        phase_desc = match.group(2).strip() if len(match.groups()) > 1 else f"Phase {phase_num}"
-                        mitre_id = 'T????'
-                    
-                    # Extract MITRE ID if present
-                    mitre_match = re.search(r'T\d{4}(?:\.\d{3})?', mitre_id)
-                    if mitre_match:
-                        mitre_id = mitre_match.group(0)
-                    
-                    # Clean phase description
-                    phase_desc = re.sub(r'<[^>]+>', '', phase_desc)
-                    phase_desc = phase_desc.replace('\n', ' ').strip()
-                    
-                    if phase_desc and len(phase_desc) > 5:
-                        phases.append((phase_desc[:40], mitre_id))
-                
-                if phases:
-                    break
-            
-            # If no phases found, create scenario-specific attack flow
-            if not phases:
-                phases = self.create_scenario_specific_attack_flow(scenario_text, scenario_id, threats)
-            
-            # Final fallback: use standard attack phases
-            if not phases:
-                phases = [
-                    ("Reconnaissance", "T1595"),
-                    ("Initial Access", "T1190"),
-                    ("Execution", "T1059"),
-                    ("Persistence", "T1053"),
-                    ("Privilege Escalation", "T1068"),
-                    ("Defense Evasion", "T1070"),
-                    ("Impact", "T1486")
-                ]
-            
-            print(f"Generated {len(phases)} phases for Scenario {scenario_id}")
+            print(f"Extracted {len(phases)} actual phases for Scenario {scenario_id}: {[p[0] for p in phases]}")
 
             # Generate threat intelligence-specific Mermaid diagram
             mermaid_code = self.generate_threat_specific_attack_flow(phases, scenario_id, product_name, threats)
@@ -171,6 +121,101 @@ class MCPDiagramGenerator:
                 f"graph LR\n    A[Scenario {scenario_id} Attack Flow]\n    A --> B[Diagram Generation Failed]", 
                 f"Attack Flow - Scenario {scenario_id}"
             )
+    
+    async def extract_actual_attack_phases(self, scenario_text: str, scenario_id: str, threats: List[Dict[str, Any]]) -> List[tuple]:
+        """Extract actual attack phases from scenario content using LLM analysis"""
+        
+        # Use LLM to analyze scenario and extract attack phases
+        analysis_prompt = f"""
+        Analyze this attack scenario and extract the specific attack phases mentioned:
+        
+        SCENARIO TEXT:
+        {scenario_text[:2000]}
+        
+        Extract the actual attack steps/phases mentioned in this scenario. Look for:
+        - Step-by-step attack progression
+        - Technical attack methods
+        - Specific tools or techniques mentioned
+        - MITRE ATT&CK techniques if present
+        
+        Return ONLY a numbered list of attack phases in this format:
+        1. Phase Name - MITRE_ID
+        2. Phase Name - MITRE_ID
+        
+        Example:
+        1. CVE-2023-1234 Exploitation - T1190
+        2. Reverse Shell Establishment - T1059
+        3. Privilege Escalation via sudo - T1068
+        
+        Focus on the ACTUAL attack steps described in the scenario, not generic phases.
+        """
+        
+        try:
+            llm_response = await self.llm.generate(analysis_prompt, max_tokens=300)
+            
+            # Parse LLM response to extract phases
+            phases = []
+            lines = llm_response.strip().split('\n')
+            
+            for line in lines:
+                # Match numbered list format: "1. Phase Name - T1234"
+                match = re.match(r'\d+\.\s*([^-]+)\s*-\s*(T\d{4}(?:\.\d{3})?)', line.strip())
+                if match:
+                    phase_name = match.group(1).strip()[:40]
+                    mitre_id = match.group(2).strip()
+                    phases.append((phase_name, mitre_id))
+            
+            # If LLM extraction failed, fall back to pattern matching
+            if not phases:
+                phases = self.extract_phases_from_text(scenario_text)
+            
+            # Final fallback to scenario-specific flow
+            if not phases:
+                phases = self.create_scenario_specific_attack_flow(scenario_text, scenario_id, threats)
+            
+            return phases[:7]  # Limit to 7 phases max
+            
+        except Exception as e:
+            print(f"LLM phase extraction failed: {e}")
+            return self.extract_phases_from_text(scenario_text)
+    
+    def extract_phases_from_text(self, scenario_text: str) -> List[tuple]:
+        """Extract phases using pattern matching as fallback"""
+        phases = []
+        
+        # Enhanced patterns to find actual attack steps
+        patterns = [
+            r'(?:Step|Phase)\s+(\d+)[:\.]\s*([^\n]+?)(?:\s*\(([T]\d{4}(?:\.\d{3})?)\))?',  # Step 1: Description (T1234)
+            r'\*\*([^*]+)\*\*[^\n]*?([T]\d{4}(?:\.\d{3})?)',  # **Phase Name** ... T1234
+            r'([A-Z][^\n]{10,50})\s*-\s*([T]\d{4}(?:\.\d{3})?)',  # Description - T1234
+            r'\d+\.\s*([^\n]{10,60})',  # 1. Description (no MITRE)
+        ]
+        
+        for pattern in patterns:
+            matches = re.finditer(pattern, scenario_text, re.IGNORECASE | re.MULTILINE)
+            for match in matches:
+                if len(match.groups()) >= 2:
+                    if match.group(1).isdigit():  # Skip if first group is just a number
+                        phase_desc = match.group(2).strip()
+                        mitre_id = match.group(3) if len(match.groups()) > 2 and match.group(3) else 'T1059'
+                    else:
+                        phase_desc = match.group(1).strip()
+                        mitre_id = match.group(2) if len(match.groups()) > 1 and match.group(2) else 'T1059'
+                else:
+                    phase_desc = match.group(1).strip() if match.group(1) else 'Attack Phase'
+                    mitre_id = 'T1059'
+                
+                # Clean and validate
+                phase_desc = re.sub(r'<[^>]+>', '', phase_desc)
+                phase_desc = phase_desc.replace('\n', ' ').strip()[:40]
+                
+                if len(phase_desc) > 8 and not phase_desc.isdigit():
+                    phases.append((phase_desc, mitre_id))
+            
+            if phases:
+                break
+        
+        return phases[:7]
     
     async def __aenter__(self):
         """Async context manager entry"""

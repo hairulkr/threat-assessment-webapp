@@ -907,8 +907,6 @@ class ThreatModelingWebApp:
                 
                 **📊 17-Source Intelligence:** NVD CVE, GitHub Security, CISA Alerts, Google CSE (12 databases), Microsoft Security with authority weighting
                 
-                **🤖 Multi-Agent System:** 4 specialized ranking agents with ensemble scoring + ThreatAccuracyEnhancer for analyst-focused intelligence
-                
                 **🔍 Scenario-Specific Modeling:**
                 - **Dynamic Scenario Types:** Remote Code Execution, Privilege Escalation, Data Exfiltration, Availability, Supply Chain attacks
                 - **Threat-Matched Attack Flows:** Each scenario gets unique attack flow diagrams based on actual threat intelligence
