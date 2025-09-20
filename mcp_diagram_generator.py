@@ -35,7 +35,7 @@ class MCPDiagramGenerator:
         
         for scenario_id in placeholders:
             # Extract the specific scenario content
-            scenario_pattern = f'SCENARIO {scenario_id}:.*?(?=SCENARIO [A-Z0-9]+:|\[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}\]|$)'
+            scenario_pattern = f'SCENARIO {scenario_id}:.*?(?=SCENARIO [A-Z0-9]+:|\\[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}\\]|$)'
             scenario_match = re.search(scenario_pattern, report_content, re.DOTALL)
             
             if scenario_match:

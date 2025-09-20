@@ -51,7 +51,13 @@ class ThreatIntelSources:
     async def get_shodan_intel(self, product_name: str) -> List[Dict[str, Any]]:
         """Get exposed services from Shodan (requires API key)"""
         import os
-        api_key = os.getenv('SHODAN_API_KEY')
+        import streamlit as st
+        
+        try:
+            api_key = st.secrets["SHODAN_API_KEY"]
+        except:
+            api_key = os.getenv('SHODAN_API_KEY')
+        
         if not api_key:
             return []
         
@@ -85,8 +91,14 @@ class ThreatIntelSources:
         url = f"https://www.googleapis.com/customsearch/v1"
         
         import os
-        api_key = os.getenv('GOOGLE_API_KEY')
-        search_engine_id = os.getenv('GOOGLE_CSE_ID')
+        import streamlit as st
+        
+        try:
+            api_key = st.secrets["GOOGLE_API_KEY"]
+            search_engine_id = st.secrets["GOOGLE_CSE_ID"]
+        except:
+            api_key = os.getenv('GOOGLE_API_KEY')
+            search_engine_id = os.getenv('GOOGLE_CSE_ID')
         
         if not api_key or not search_engine_id:
             return []
