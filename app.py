@@ -10,60 +10,25 @@ import os
 import sys
 from datetime import datetime
 import base64
-from io import BytesIO
 import time
 
-# Set security headers
-st.set_page_config(
-    page_title="Threat Modeling System",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Import required modules
+try:
+    from daily_usage_tracker import DailyUsageTracker
+except ImportError:
+    # Fallback if module doesn't exist
+    class DailyUsageTracker:
+        def get_remaining_tries(self):
+            return 10
 
-# Display remaining tries in the sidebar with simple, elegant styling
-usage_tracker = DailyUsageTracker()
-remaining_tries = usage_tracker.get_remaining_tries()
-
-st.sidebar.markdown("### Daily Tries Remaining")
-st.sidebar.markdown(
-    f'<div style="background-color: #ffe1e9; border-radius: 4px; border: 1px solid #ffb1c7; '
-    f'color: #9b2542; padding: 16px; margin-top: 8px;">'
-    f'<div>{remaining_tries} tries remaining</div>'
-    '</div>',
-    unsafe_allow_html=True
-)
-
-st.sidebar.markdown("### Daily Tries Remaining")
-st.sidebar.markdown(
-    f'<div style="background-color: #ffe1e9; border-radius: 4px; border: 1px solid #ffb1c7; '
-    f'color: #9b2542; padding: 16px; margin-top: 8px;">'
-    f'<div>{remaining_tries} tries remaining</div>'
-    '</div>',
-    unsafe_allow_html=True
-)
-            midi=(),
-            payment=(),
-            picture-in-picture=(),
-            publickey-credentials-get=(),
-            screen-wake-lock=(),
-            sync-xhr=(),
-            usb=(),
-            web-share=(),
-            xr-spatial-tracking=()
-        "
-    />
-""", unsafe_allow_html=True)
-
-# Ensure the current directory is in the Python path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-# Import existing agents (no changes needed)
 from gemini_client import GeminiClient
-from agents import ProductInfoAgent, ThreatIntelAgent, RiskAnalysisAgent, ControlsAgent, ReportAgent
+from agents.product_info_agent import ProductInfoAgent
+from agents.threat_intel_agent import ThreatIntelAgent
 from agents.threat_context_agent import ThreatContextAgent
+from agents.risk_analysis_agent import RiskAnalysisAgent
+from agents.controls_agent import ControlsAgent
+from agents.report_agent import ReportAgent
 from agents.reviewer_agent import ReviewerAgent
-from daily_usage_tracker import DailyUsageTracker
 
 # Page configuration
 st.set_page_config(
@@ -73,22 +38,16 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# Custom CSS to increase sidebar width
+# Custom CSS styles
 st.markdown("""
 <style>
+    /* Sidebar styling */
     section[data-testid="stSidebar"] {
         width: 280px !important;
         min-width: 280px !important;
     }
-    .css-1d391kg {
-        width: 280px !important;
-    }
-    .css-1lcbmhc {
-        width: 280px !important;
-    }
-    .css-17eq0hr {
-        width: 280px !important;
-    }
+    
+    /* Layout adjustments */
     .block-container {
         padding-top: 0rem !important;
         margin-top: 0rem !important;
@@ -102,11 +61,40 @@ st.markdown("""
     div[data-testid="stToolbar"] {
         display: none !important;
     }
-    .css-1rs6os, .css-18e3th9, .css-k1vhr4 {
-        padding-top: 0rem !important;
+    
+    /* Main header styling */
+    .main-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        margin-bottom: 2rem;
     }
     
-    /* Mobile Responsive Design */
+    /* Progress bar styling */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    
+    /* Threat card styling */
+    .threat-card {
+        background: var(--secondary-background-color, #262730);
+        color: var(--text-color, #fafafa);
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+        margin: 1rem 0;
+        border: 1px solid #444;
+    }
+    
+    [data-theme="light"] .threat-card {
+        background: #f8f9fa;
+        color: #262730;
+        border: 1px solid #dee2e6;
+    }
+    
+    /* Mobile responsive design */
     @media (max-width: 768px) {
         section[data-testid="stSidebar"] {
             display: none !important;
@@ -118,6 +106,8 @@ st.markdown("""
         .stButton > button {
             width: 100% !important;
             margin-bottom: 0.5rem !important;
+            font-size: 0.8rem !important;
+            padding: 0.4rem !important;
         }
         .stTextInput {
             width: 100% !important;
@@ -129,6 +119,12 @@ st.markdown("""
             padding: 1rem !important;
             margin-bottom: 1rem !important;
         }
+        .main-header h1 {
+            font-size: 1.3rem !important;
+        }
+        .main-header p {
+            font-size: 0.9rem !important;
+        }
     }
     
     @media (max-width: 480px) {
@@ -138,49 +134,7 @@ st.markdown("""
         h1 {
             font-size: 1.2rem !important;
         }
-        .stButton > button {
-            font-size: 0.8rem !important;
-            padding: 0.4rem !important;
-        }
-        .main-header h1 {
-            font-size: 1.3rem !important;
-        }
-        .main-header p {
-            font-size: 0.9rem !important;
-        }
     }
-</style>
-""", unsafe_allow_html=True)
-
-# Custom CSS for professional styling
-st.markdown("""
-<style>
-    .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 10px;
-        color: white;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, #667eea, #764ba2);
-    }
-    .threat-card {
-        background: var(--secondary-background-color, #262730);
-        color: var(--text-color, #fafafa);
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #667eea;
-        margin: 1rem 0;
-        border: 1px solid #444;
-    }
-    [data-theme="light"] .threat-card {
-        background: #f8f9fa;
-        color: #262730;
-        border: 1px solid #dee2e6;
-    }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -192,29 +146,27 @@ class ThreatModelingWebApp:
         
     def setup_session_state(self):
         """Initialize session state variables"""
-        if 'assessment_complete' not in st.session_state:
-            st.session_state.assessment_complete = False
-        if 'report_content' not in st.session_state:
-            st.session_state.report_content = None
-        if 'product_name' not in st.session_state:
-            st.session_state.product_name = ""
-        if 'all_data' not in st.session_state:
-            st.session_state.all_data = None
-        if 'suggestions' not in st.session_state:
-            st.session_state.suggestions = []
-        if 'selected_product' not in st.session_state:
-            st.session_state.selected_product = ""
-        if 'last_search' not in st.session_state:
-            st.session_state.last_search = ""
-        if 'valid_products' not in st.session_state:
-            st.session_state.valid_products = []
-        if 'assessment_running' not in st.session_state:
-            st.session_state.assessment_running = False
+        defaults = {
+            'assessment_complete': False,
+            'report_content': None,
+            'product_name': "",
+            'all_data': None,
+            'suggestions': [],
+            'selected_product': "",
+            'last_search': "",
+            'valid_products': [],
+            'assessment_running': False,
+            'usage_tracker': DailyUsageTracker()
+        }
+        
+        for key, value in defaults.items():
+            if key not in st.session_state:
+                st.session_state[key] = value
     
     async def run_assessment(self, product_name: str):
         """Run the threat assessment with progress tracking"""
         
-        # Initialize orchestrator
+        # Get API key
         try:
             api_key = st.secrets["GEMINI_API_KEY"]
         except:
@@ -227,13 +179,15 @@ class ThreatModelingWebApp:
         llm = GeminiClient(api_key)
         
         # Initialize agents
-        product_agent = ProductInfoAgent(llm)
-        threat_agent = ThreatIntelAgent(llm)
-        threat_context_agent = ThreatContextAgent(llm)
-        risk_agent = RiskAnalysisAgent(llm)
-        controls_agent = ControlsAgent(llm)
-        report_agent = ReportAgent(llm)
-        reviewer_agent = ReviewerAgent(llm)
+        agents = {
+            'product': ProductInfoAgent(llm),
+            'threat': ThreatIntelAgent(llm),
+            'context': ThreatContextAgent(llm),
+            'risk': RiskAnalysisAgent(llm),
+            'controls': ControlsAgent(llm),
+            'report': ReportAgent(llm),
+            'reviewer': ReviewerAgent(llm)
+        }
         
         # Progress tracking
         progress_bar = st.progress(0)
@@ -245,93 +199,69 @@ class ThreatModelingWebApp:
             "timestamp": datetime.now().isoformat()
         }
         
-        # Capture print statements
-        import io
-        import contextlib
-        
-        @contextlib.contextmanager
-        def capture_prints():
-            old_stdout = sys.stdout
-            sys.stdout = buffer = io.StringIO()
-            try:
-                yield buffer
-            finally:
-                sys.stdout = old_stdout
-        
         try:
-            # Set assessment as running
             st.session_state.assessment_running = True
             
             # Step 1: Product Information
-            st.session_state.current_step = 1
             status_text.markdown("**🔍 Step 1: Gathering product information...**")
             progress_bar.progress(10)
             
             with st.spinner("🔍 Analyzing product information..."):
-                with capture_prints() as output:
-                    product_info = await product_agent.gather_info(product_name)
+                product_info = await agents['product'].gather_info(product_name)
             
-            status_box.code(output.getvalue() or "Product information gathered successfully")
+            status_box.success("Product information gathered successfully")
             all_data["product_info"] = product_info
             
             # Step 2: Threat Intelligence
-            st.session_state.current_step = 2
             status_text.markdown("**🎯 Step 2: Fetching threat intelligence...**")
             progress_bar.progress(25)
             
             with st.spinner("🎯 Fetching threat intelligence from databases..."):
-                with capture_prints() as output:
-                    threats = await threat_agent.fetch_recent_threats(product_info)
+                threats = await agents['threat'].fetch_recent_threats(product_info)
             
-            status_box.code(output.getvalue() or f"Found {len(threats)} threats")
+            status_box.success(f"Found {len(threats)} threats")
             all_data["threats"] = threats
             
-            # Step 3: Threat Context
-            st.session_state.current_step = 3
+            # Step 3: Threat Context & Risk Analysis
             status_text.markdown("**🌐 Step 3: Enriching with web intelligence...**")
             progress_bar.progress(40)
             
             with st.spinner("🌐 Enriching with web intelligence and analyzing risks..."):
-                with capture_prints() as output:
-                    context_task = threat_context_agent.enrich_threat_report(product_name, threats)
-                    risk_task = risk_agent.analyze_risks(product_info, threats)
-                    threat_context, risks = await asyncio.gather(context_task, risk_task)
+                context_task = agents['context'].enrich_threat_report(product_name, threats)
+                risk_task = agents['risk'].analyze_risks(product_info, threats)
+                threat_context, risks = await asyncio.gather(context_task, risk_task)
             
-            status_box.code(output.getvalue() or "Web intelligence and risk analysis completed")
+            status_box.success("Web intelligence and risk analysis completed")
             all_data["threat_context"] = threat_context
             all_data["risks"] = risks
             
             progress_bar.progress(60)
             
             # Step 4: Security Controls
-            st.session_state.current_step = 4
             status_text.markdown("**🛡️ Step 4: Generating control recommendations...**")
             
             with st.spinner("🛡️ Generating security control recommendations..."):
-                with capture_prints() as output:
-                    controls = await controls_agent.propose_controls(risks)
+                controls = await agents['controls'].propose_controls(risks)
             
-            status_box.code(output.getvalue() or "Comprehensive security control framework established")
+            status_box.success("Security control framework established")
             all_data["controls"] = controls
             
             progress_bar.progress(75)
             
             # Step 5: Expert Review & Report Generation
-            st.session_state.current_step = 5
             status_text.markdown("**📊 Step 5: Finalizing report generation...**")
             
             with st.spinner("📊 Conducting expert review and generating report..."):
-                with capture_prints() as output:
-                    review_task = reviewer_agent.conduct_comprehensive_review(all_data)
-                    report_task = report_agent.generate_comprehensive_report(all_data)
-                    review_results, report_content = await asyncio.gather(review_task, report_task)
+                review_task = agents['reviewer'].conduct_comprehensive_review(all_data)
+                report_task = agents['report'].generate_comprehensive_report(all_data)
+                review_results, report_content = await asyncio.gather(review_task, report_task)
             
-            status_box.code(output.getvalue() or "Expert review and report generation completed")
+            status_box.success("Expert review and report generation completed")
             
             # Check for termination
             if review_results.get("terminate_recommended", False):
                 progress_bar.progress(100)
-                st.session_state.assessment_running = False  # Reset on termination
+                st.session_state.assessment_running = False
                 status_text.markdown("**⚠️ Analysis terminated due to low confidence data**")
                 st.warning("Analysis terminated: Low confidence threat intelligence detected. Please try a different product name.")
                 return None, None
@@ -339,15 +269,14 @@ class ThreatModelingWebApp:
             all_data["expert_review"] = review_results
             
             progress_bar.progress(100)
-            st.session_state.current_step = 6  # Completed
-            st.session_state.assessment_running = False  # Reset running state
+            st.session_state.assessment_running = False
             status_text.markdown("**✅ Assessment completed successfully!**")
             status_box.success("Threat assessment report generated successfully")
             
             return report_content, all_data
             
         except Exception as e:
-            st.session_state.assessment_running = False  # Reset on error
+            st.session_state.assessment_running = False
             st.error(f"❌ Error during assessment: {str(e)}")
             return None, None
     
@@ -376,7 +305,6 @@ class ThreatModelingWebApp:
                     'LOW': '🟢'
                 }.get(severity, '⚪')
                 
-                # Use Streamlit native components for better theme integration
                 with st.container():
                     st.markdown(f"### {severity_color} {threat.get('title', 'Unknown Threat')}")
                     col1, col2, col3 = st.columns(3)
@@ -389,21 +317,24 @@ class ThreatModelingWebApp:
                     st.markdown("---")
     
     def create_pdf_download(self, content: str, filename: str):
-        """Create PDF download with multiple fallback options"""
-        from pdf_generator import create_pdf_with_weasyprint, create_simple_pdf
+        """Create PDF download with fallback to HTML"""
+        try:
+            from pdf_generator import create_pdf_with_weasyprint, create_simple_pdf
+            
+            # Try WeasyPrint first
+            pdf_link = create_pdf_with_weasyprint(content, filename)
+            if pdf_link:
+                return pdf_link
+            
+            # Try simple PDF generation
+            pdf_link = create_simple_pdf(content, filename)
+            if pdf_link:
+                return pdf_link
+        except ImportError:
+            pass
         
-        # Try WeasyPrint first (best quality)
-        pdf_link = create_pdf_with_weasyprint(content, filename)
-        if pdf_link:
-            return pdf_link
-        
-        # Try simple PDF generation
-        pdf_link = create_simple_pdf(content, filename)
-        if pdf_link:
-            return pdf_link
-        
-        # Final fallback: HTML download
-        st.info("📝 Downloading as HTML report (PDF generation requires additional system libraries)")
+        # Fallback: HTML download
+        st.info("📝 Downloading as HTML report")
         b64 = base64.b64encode(content.encode()).decode()
         href = f'<a href="data:text/html;base64,{b64}" download="{filename}">📥 Download HTML Report</a>'
         return href
@@ -413,7 +344,7 @@ class ThreatModelingWebApp:
         if 'last_request' not in st.session_state:
             st.session_state.last_request = 0
         
-        if time.time() - st.session_state.last_request < 30:  # 30 second cooldown
+        if time.time() - st.session_state.last_request < 30:
             remaining = int(30 - (time.time() - st.session_state.last_request))
             st.error(f"⏳ Please wait {remaining} seconds between assessments")
             return False
@@ -427,19 +358,16 @@ class ThreatModelingWebApp:
             st.error("Please enter a product name")
             return False
         
-        # Remove extra whitespace and validate length
         cleaned_name = " ".join(product_name.split())
         if len(cleaned_name) < 3:
             st.error("Product name must be at least 3 characters long")
             return False
             
-        # Check for invalid characters
         invalid_chars = ['<', '>', ';', '|', '&', '$', '#']
         if any(char in cleaned_name for char in invalid_chars):
             st.error("Product name contains invalid characters")
             return False
             
-        # Limit maximum length
         if len(cleaned_name) > 100:
             st.error("Product name is too long (maximum 100 characters)")
             return False
@@ -453,7 +381,7 @@ class ThreatModelingWebApp:
             st.session_state.usage_count = 0
             st.session_state.usage_date = today
         
-        if st.session_state.usage_count >= 10:  # 10 assessments per day
+        if st.session_state.usage_count >= 10:
             st.error("🚫 Daily limit reached (10 assessments). Try again tomorrow.")
             return False
         
@@ -533,19 +461,12 @@ class ThreatModelingWebApp:
             for i, step in enumerate(steps, 1):
                 st.markdown(f"{i}. {step}")
             
-            # Use Streamlit session state to persist the tracker instance
-            if 'usage_tracker' not in st.session_state:
-                st.session_state['usage_tracker'] = DailyUsageTracker()
-
-            usage_tracker = st.session_state['usage_tracker']
-            remaining_tries = usage_tracker.get_remaining_tries()
-
-            # Display remaining tries in the sidebar with simple, elegant styling
-            usage_tracker = DailyUsageTracker()
+            # Usage tracker
+            usage_tracker = st.session_state.usage_tracker
             remaining_tries = usage_tracker.get_remaining_tries()
             
-            st.sidebar.markdown("### 🔒 Daily Assessment Quota")
-            st.sidebar.markdown(f"""
+            st.markdown("### 🔒 Daily Assessment Quota")
+            st.markdown(f"""
             <div style="
                 background-color: #ffe1e9;
                 border-radius: 4px;
@@ -554,7 +475,7 @@ class ThreatModelingWebApp:
                 padding: 16px;
                 margin-top: 8px;
             ">
-                <div>� {remaining_tries} assessments remaining</div>
+                <div>{remaining_tries} assessments remaining</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -608,7 +529,7 @@ class ThreatModelingWebApp:
                     st.markdown(f"💡 **Found {len(st.session_state.suggestions)} matching products**")
                     
                     if 'valid_products' in st.session_state and st.session_state.valid_products:
-                        st.success(f"✅ **Products with CVE data available:**")
+                        st.success("✅ **Products with CVE data available:**")
                         
                         # Display valid products as buttons in columns
                         cols = st.columns(min(len(st.session_state.valid_products), 2))
@@ -640,8 +561,8 @@ class ThreatModelingWebApp:
                         • [NIST NVD](https://nvd.nist.gov/vuln/search)
                         """)
                         
-                        col1, col2 = st.columns(2)
-                        with col1:
+                        col1_inner, col2_inner = st.columns(2)
+                        with col1_inner:
                             if st.button(
                                 f"Continue with '{product_input}'", 
                                 key="continue_original",
@@ -650,26 +571,25 @@ class ThreatModelingWebApp:
                                 st.session_state.selected_product = product_input
                                 st.rerun()
                         
-                        with col2:
+                        with col2_inner:
                             if st.button(
                                 "🔍 Research Product Name", 
                                 key="research_product",
                                 use_container_width=True
                             ):
-                                # Clear all search-related session state
+                                # Clear search-related session state
                                 for key in ['selected_product', 'suggestions', 'valid_products', 'last_search']:
                                     if key in st.session_state:
                                         del st.session_state[key]
                                 st.rerun()
             
-            # Show assessment form only after suggestions are displayed or product selected
+            # Show assessment form
             show_assessment_form = (
                 ('suggestions' in st.session_state and st.session_state.suggestions) or
                 st.session_state.get('selected_product')
             )
             
             if show_assessment_form:
-                # Assessment form
                 with st.form("assessment_form"):
                     selected_product = st.session_state.get('selected_product', product_input)
                     
@@ -698,7 +618,7 @@ class ThreatModelingWebApp:
                 example_button = False
                 product_name = None
             
-            # Handle form submission with security checks
+            # Handle form submission
             if submit_button and product_name:
                 if not self.check_rate_limit():
                     st.stop()
@@ -854,7 +774,6 @@ class ThreatModelingWebApp:
                     </div>
                     
                     <script>
-                        // Initialize Mermaid with proper configuration
                         mermaid.initialize({{
                             startOnLoad: true,
                             theme: 'default',
@@ -871,7 +790,6 @@ class ThreatModelingWebApp:
                             }}
                         }});
                         
-                        // Force render all mermaid diagrams
                         function renderMermaid() {{
                             const mermaidElements = document.querySelectorAll('.mermaid');
                             mermaidElements.forEach((element, index) => {{
@@ -889,7 +807,6 @@ class ThreatModelingWebApp:
                             }});
                         }}
                         
-                        // Dynamic height adjustment
                         function adjustHeight() {{
                             const body = document.body;
                             const html = document.documentElement;
@@ -907,7 +824,6 @@ class ThreatModelingWebApp:
                             }}, '*');
                         }}
                         
-                        // Initialize everything when DOM is ready
                         document.addEventListener('DOMContentLoaded', function() {{
                             setTimeout(() => {{
                                 renderMermaid();
@@ -915,7 +831,6 @@ class ThreatModelingWebApp:
                             }}, 500);
                         }});
                         
-                        // Fallback for window load
                         window.addEventListener('load', () => {{
                             setTimeout(() => {{
                                 renderMermaid();
@@ -923,54 +838,34 @@ class ThreatModelingWebApp:
                             }}, 1000);
                         }});
                         
-                        // Periodic height adjustment
                         setInterval(adjustHeight, 3000);
                     </script>
                 </body>
                 </html>
                 """
                 
-                # Use a much larger initial height to prevent truncation
-                content_length = len(st.session_state.report_content)
-                diagram_count = st.session_state.report_content.count('mermaid')
-                estimated_height = max(content_length // 5 + (diagram_count * 500), 2000)
-                
-                # Calculate dynamic height based on content
+                # Calculate dynamic height
                 content_length = len(st.session_state.report_content)
                 word_count = len(st.session_state.report_content.split())
                 diagram_count = st.session_state.report_content.count('mermaid')
-                
-                # Estimate height: 20px per line + 400px per diagram + base height
                 estimated_height = max(word_count * 2 + diagram_count * 400 + 500, 1000)
                 
-                # Configure sandbox and CSP for iframe
-                secured_html = f"""
-                    <iframe
-                        srcdoc="{mermaid_html}"
-                        style="width: 100%; height: {estimated_height}px; border: none; border-radius: 10px;"
-                        sandbox="allow-scripts"
-                        loading="lazy"
-                    ></iframe>
-                """
-                st.components.v1.html(secured_html, height=estimated_height + 20, scrolling=False)
+                st.components.v1.html(mermaid_html, height=estimated_height, scrolling=True)
             
             # Reset button
             if st.button("🔄 New Assessment"):
-                # Simple session state reset
+                # Reset session state
                 st.session_state.assessment_complete = False
                 st.session_state.assessment_running = False
                 st.session_state.report_content = None
                 st.session_state.all_data = None
                 st.session_state.product_name = ""
-                if 'suggestions' in st.session_state:
-                    del st.session_state.suggestions
-                if 'selected_product' in st.session_state:
-                    del st.session_state.selected_product
-                if 'last_search' in st.session_state:
-                    del st.session_state.last_search
-                if 'valid_products' in st.session_state:
-                    del st.session_state.valid_products
-                st.session_state.current_step = 0
+                
+                # Clear search-related state
+                for key in ['suggestions', 'selected_product', 'last_search', 'valid_products']:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                
                 st.rerun()
 
 # Run the app
