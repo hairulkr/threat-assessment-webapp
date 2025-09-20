@@ -473,9 +473,13 @@ class ThreatModelingWebApp:
             for i, step in enumerate(steps, 1):
                 st.markdown(f"{i}. {step}")
             
-            # Display remaining tries in the sidebar with enhanced styling
-            usage_tracker = DailyUsageTracker(st.secrets["GEMINI_API_KEY"])
+            # Use Streamlit session state to persist the tracker instance
+            if 'usage_tracker' not in st.session_state:
+                st.session_state['usage_tracker'] = DailyUsageTracker()
+
+            usage_tracker = st.session_state['usage_tracker']
             remaining_tries = usage_tracker.get_remaining_tries()
+
             st.sidebar.markdown(f"""
             <div style="
                 background-color: #e3f2fd;
