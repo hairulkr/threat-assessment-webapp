@@ -626,39 +626,8 @@ class ThreatModelingWebApp:
                 with open(methodology_path, 'r', encoding='utf-8') as f:
                     methodology_content = f.read()
                 
-                # Add dynamic height calculation JavaScript
-                methodology_with_height = methodology_content.replace(
-                    "</body>",
-                    """
-                    <script>
-                        function setFrameHeight() {
-                            const height = Math.max(
-                                document.body.scrollHeight,
-                                document.body.offsetHeight,
-                                document.documentElement.clientHeight,
-                                document.documentElement.scrollHeight,
-                                document.documentElement.offsetHeight
-                            );
-                            window.parent.postMessage({
-                                type: 'streamlit:setFrameHeight',
-                                height: height + 50
-                            }, '*');
-                        }
-                        
-                        // Set height after content loads
-                        document.addEventListener('DOMContentLoaded', setFrameHeight);
-                        window.addEventListener('load', setFrameHeight);
-                        
-                        // Set height after mermaid renders
-                        setTimeout(setFrameHeight, 2000);
-                        setTimeout(setFrameHeight, 5000);
-                    </script>
-                    </body>
-                    """
-                )
-                
-                # Display methodology with dynamic height
-                st.components.v1.html(methodology_with_height, height=4000, scrolling=False)
+                # Display methodology with large height and scrolling enabled
+                st.components.v1.html(methodology_content, height=6000, scrolling=True)
             else:
                 st.error("Methodology file not found")
             
