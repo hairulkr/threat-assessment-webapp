@@ -874,15 +874,24 @@ class ThreatModelingWebApp:
             
             try:
                 report_content, all_data = asyncio.run(self.run_assessment(product_name))
-                if report_content:
+                if report_content and all_data:
                     # Increment usage after successful assessment
                     usage_tracker.increment_usage()
                     st.session_state.report_content = report_content
                     st.session_state.all_data = all_data
                     st.session_state.assessment_complete = True
-            finally:
+                    st.session_state.assessment_running = False
+                else:
+                    # Assessment failed or was terminated
+                    st.session_state.assessment_running = False
+                    st.error("Assessment failed or was terminated. Please try again.")
+            except Exception as e:
                 st.session_state.assessment_running = False
-            st.rerun()
+                st.error(f"Assessment error: {str(e)}")
+            
+            # Only rerun if assessment completed successfully
+            if st.session_state.get('assessment_complete'):
+                st.rerun()
         
         # Display results if assessment is complete
         if st.session_state.assessment_complete and st.session_state.report_content:
