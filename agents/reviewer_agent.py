@@ -17,13 +17,13 @@ class ReviewerAgent:
         verified_count = len([t for t in web_intel if t.get('authority') == 'VERIFIED'])
         community_count = len([t for t in web_intel if t.get('authority') == 'COMMUNITY'])
         
-        # Base confidence from source count
+        # Base confidence from source count - more generous scoring
         if total_sources >= 5:
             base_score = 8
         elif total_sources >= 3:
-            base_score = 6
+            base_score = 7
         elif total_sources >= 1:
-            base_score = 4
+            base_score = 5
         else:
             base_score = 1
         
@@ -145,28 +145,28 @@ class ReviewerAgent:
         print(f"   📈 SOURCES: {confidence_metrics['total_sources']} total (NVD CVEs: {confidence_metrics['nvd_cves_found']})")
         print(f"   🎯 RELEVANCE: {confidence_metrics['average_relevance']}/1.0 average")
         
-        # Trust structured confidence - only terminate on very low scores
-        if confidence_metrics['confidence_score'] < 3.0:
+        # Only terminate if absolutely no relevant intelligence found
+        if confidence_metrics['confidence_score'] < 2.0 and confidence_metrics['total_sources'] == 0:
             return {
                 "comprehensive_review": {
                     "confidence_metrics": confidence_metrics,
-                    "termination_notice": "⚠️ ANALYSIS TERMINATED: Very low confidence threat intelligence detected. Please research another product name and start the threat modeling process over with a different target."
+                    "termination_notice": "⚠️ ANALYSIS TERMINATED: No threat intelligence found. Please try a different product name."
                 },
-                "review_status": "TERMINATED_LOW_CONFIDENCE",
+                "review_status": "TERMINATED_NO_DATA",
                 "batches_completed": 1,
                 "terminate_recommended": True
             }
         
-        # Skip LLM review for HIGH confidence (7+) - trust structured metrics
-        if confidence_metrics['confidence_score'] >= 7.0:
-            print(f"   ✅ HIGH CONFIDENCE: Skipping LLM review, proceeding with analysis")
+        # Skip LLM review for any confidence with sources - trust the comprehensive system
+        if confidence_metrics['total_sources'] > 0:
+            print(f"   ✅ PROCEEDING: {confidence_metrics['total_sources']} sources found, confidence {confidence_metrics['confidence_score']}/10")
             exec_summary = await self.generate_executive_summary(all_data)
             return {
                 "comprehensive_review": {
                     "confidence_metrics": confidence_metrics,
                     "executive_summary": exec_summary
                 },
-                "review_status": "HIGH_CONFIDENCE_VALIDATED",
+                "review_status": "VALIDATED",
                 "batches_completed": 1,
                 "terminate_recommended": False
             }
