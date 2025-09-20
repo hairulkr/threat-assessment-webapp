@@ -21,46 +21,27 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Add security headers using custom HTML
-st.markdown("""
-    <meta
-        http-equiv="Content-Security-Policy"
-        content="
-                    # Display remaining tries in the sidebar with simple, elegant styling
-            usage_tracker = DailyUsageTracker()
-            remaining_tries = usage_tracker.get_remaining_tries()
-            
-            st.sidebar.markdown("### Daily Tries Remaining")
-            st.sidebar.markdown(
-                f'<div style="background-color: #ffe1e9; border-radius: 4px; border: 1px solid #ffb1c7; color: #9b2542; padding: 16px; margin-top: 8px;">'
-                f'{remaining_tries} tries remaining'
-                '</div>',
-                unsafe_allow_html=True
-            )self' 'unsafe-inline' 'unsafe-eval' data: https://cdn.jsdelivr.net;
-            script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
-            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
-            img-src 'self' data: https:;
-            connect-src 'self' https:;
-            frame-ancestors 'self';
-            frame-src 'self';
-            base-uri 'self';
-            form-action 'self';
-        "
-    />
-    <meta
-        http-equiv="Permissions-Policy"
-        content="
-            accelerometer=(),
-            autoplay=(),
-            camera=(),
-            cross-origin-isolated=(),
-            display-capture=(),
-            encrypted-media=(),
-            fullscreen=(),
-            geolocation=(),
-            gyroscope=(),
-            magnetometer=(),
-            microphone=(),
+# Display remaining tries in the sidebar with simple, elegant styling
+usage_tracker = DailyUsageTracker()
+remaining_tries = usage_tracker.get_remaining_tries()
+
+st.sidebar.markdown("### Daily Tries Remaining")
+st.sidebar.markdown(
+    f'<div style="background-color: #ffe1e9; border-radius: 4px; border: 1px solid #ffb1c7; '
+    f'color: #9b2542; padding: 16px; margin-top: 8px;">'
+    f'<div>{remaining_tries} tries remaining</div>'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+st.sidebar.markdown("### Daily Tries Remaining")
+st.sidebar.markdown(
+    f'<div style="background-color: #ffe1e9; border-radius: 4px; border: 1px solid #ffb1c7; '
+    f'color: #9b2542; padding: 16px; margin-top: 8px;">'
+    f'<div>{remaining_tries} tries remaining</div>'
+    '</div>',
+    unsafe_allow_html=True
+)
             midi=(),
             payment=(),
             picture-in-picture=(),
