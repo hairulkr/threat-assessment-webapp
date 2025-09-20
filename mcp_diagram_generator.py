@@ -54,7 +54,7 @@ class MCPDiagramGenerator:
         
         # Find and replace diagram placeholders
         # Find all scenarios in the report content
-        scenario_pattern = r'Scenario ([A-Z][0-9]*):.*?(?=Scenario [A-Z][0-9]*:|$)'
+        scenario_pattern = r'\d+\.\d+ SCENARIO ([A-Z]):.*?(?=\d+\.\d+ SCENARIO [A-Z]:|$)'
         scenarios = re.finditer(scenario_pattern, report_content, re.DOTALL)
 
         for match in scenarios:
