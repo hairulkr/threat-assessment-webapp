@@ -626,8 +626,8 @@ class ThreatModelingWebApp:
                 with open(methodology_path, 'r', encoding='utf-8') as f:
                     methodology_content = f.read()
                 
-                # Display methodology with large height and scrolling enabled
-                st.components.v1.html(methodology_content, height=6000, scrolling=True)
+                # Display methodology with large height and no scrolling
+                st.components.v1.html(methodology_content, height=6000, scrolling=False)
             else:
                 st.error("Methodology file not found")
             
