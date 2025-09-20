@@ -549,86 +549,37 @@ class ThreatModelingWebApp:
             usage_tracker = st.session_state['usage_tracker']
             remaining_tries = usage_tracker.get_remaining_tries()
 
-            # Display remaining tries in the sidebar with enhanced styling
+            # Display remaining tries in the sidebar with simple, elegant styling
             usage_tracker = DailyUsageTracker()
             remaining_tries = usage_tracker.get_remaining_tries()
-            daily_limit = usage_tracker.daily_limit
             
-            # Calculate percentage for progress bar
-            progress_percentage = (daily_limit - remaining_tries) / daily_limit
-            
-            # Define color based on remaining tries
-            if remaining_tries > daily_limit * 0.7:  # > 70%
-                color = "#28a745"  # Green
-                emoji = "🟢"
-            elif remaining_tries > daily_limit * 0.3:  # 30-70%
-                color = "#ffc107"  # Yellow
-                emoji = "🟡"
-            else:  # < 30%
-                color = "#dc3545"  # Red
-                emoji = "🔴"
-            
-            st.sidebar.markdown(f"""
+            st.sidebar.markdown("""
             <div style="
-                background: linear-gradient(135deg, #f6f8fd 0%, #f1f4f9 100%);
-                padding: 20px;
-                border-radius: 15px;
+                background-color: #f8f9fa;
+                border-radius: 8px;
+                padding: 16px;
                 margin: 20px 0;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-                border: 1px solid rgba(0, 0, 0, 0.05);
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             ">
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <h4 style="
+                <div style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                ">
+                    <span style="
                         color: #1a237e;
-                        font-weight: bold;
-                        margin: 0;
-                        font-size: 1.2em;
-                    ">Daily Assessment Quota</h4>
-                </div>
-                
-                <div style="
-                    background-color: rgba(255, 255, 255, 0.8);
-                    padding: 15px;
-                    border-radius: 10px;
-                    text-align: center;
-                    margin: 10px 0;
-                ">
-                    <div style="font-size: 2.5em; margin-bottom: 5px;">{emoji}</div>
-                    <div style="
-                        font-size: 2em;
-                        font-weight: bold;
-                        color: {color};
-                        margin: 5px 0;
-                    ">{remaining_tries}</div>
-                    <div style="
                         font-size: 0.9em;
-                        color: #666;
-                        margin-top: 5px;
-                    ">Remaining Today</div>
-                </div>
-                
-                <div style="
-                    background-color: #eee;
-                    height: 4px;
-                    border-radius: 2px;
-                    margin: 15px 0 5px 0;
-                ">
-                    <div style="
-                        width: {progress_percentage * 100}%;
-                        background-color: {color};
-                        height: 100%;
-                        border-radius: 2px;
-                        transition: width 0.5s ease-in-out;
-                    "></div>
-                </div>
-                
-                <div style="
-                    text-align: center;
-                    font-size: 0.8em;
-                    color: #666;
-                    margin-top: 5px;
-                ">
-                    {daily_limit - remaining_tries} used / {daily_limit} total
+                        font-weight: 500;
+                    ">Daily Quota</span>
+                    <span style="
+                        background-color: #e3f2fd;
+                        color: #1a237e;
+                        padding: 4px 12px;
+                        border-radius: 12px;
+                        font-size: 0.9em;
+                        font-weight: 600;
+                    ">{remaining_tries} left</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
