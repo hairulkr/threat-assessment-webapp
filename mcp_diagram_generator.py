@@ -53,38 +53,28 @@ class MCPDiagramGenerator:
         print("🎯 Generating diagrams for each attack scenario...")
         
         # Find and replace diagram placeholders
-        # Find all scenario placeholders
-        placeholders = re.findall(r'\[DIAGRAM_PLACEHOLDER_SCENARIO_([A-Z0-9]+)\]', report_content)
-        print("🔍 Full Report Content:")
-        print(report_content)
-        print("🔍 Found placeholders:", placeholders)
+        # Find all scenarios in the report content
+        scenario_pattern = r'Scenario ([A-Z][0-9]*):.*?(?=Scenario [A-Z][0-9]*:|$)'
+        scenarios = re.finditer(scenario_pattern, report_content, re.DOTALL)
 
-        for scenario_id in placeholders:
-            # Extract the specific scenario content
-            scenario_pattern = f'SCENARIO {scenario_id}:.*?(?=SCENARIO [A-Z0-9]+:|\\[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}\\]|$)'
-            scenario_match = re.search(scenario_pattern, report_content, re.DOTALL)
+        for match in scenarios:
+            scenario_id = match.group(1)
+            scenario_text = match.group(0)
+            print(f"🖼️ Generating diagram for Scenario {scenario_id}...")
+            print(f"Scenario Text: {scenario_text}")
 
-            if scenario_match:
-                scenario_text = scenario_match.group(0)
-                print(f"🖼️ Generating diagram for Scenario {scenario_id}...")
-                print(f"Scenario Text: {scenario_text}")
+            # Generate diagram for this specific scenario
+            try:
+                diagram_html = await self.generate_scenario_diagram(scenario_text, scenario_id, threats, product_name)
+                print(f"✅ Generated diagram HTML for Scenario {scenario_id}:", diagram_html)
+            except Exception as e:
+                print(f"⚠️ Diagram generation failed for Scenario {scenario_id}: {e}")
+                diagram_html = f"<div class='diagram-error'>Diagram generation failed for Scenario {scenario_id}</div>"
 
-                # Generate diagram for this specific scenario
-                try:
-                    diagram_html = await self.generate_scenario_diagram(scenario_text, scenario_id, threats, product_name)
-                    print(f"✅ Generated diagram HTML for Scenario {scenario_id}:", diagram_html)
-                except Exception as e:
-                    print(f"⚠️ Diagram generation failed for Scenario {scenario_id}: {e}")
-                    diagram_html = f"<div class='diagram-error'>Diagram generation failed for Scenario {scenario_id}</div>"
+            # Replace placeholder with diagram
+            placeholder = f'[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}]'
+            report_content = report_content.replace(placeholder, diagram_html)
 
-                # Replace placeholder with diagram
-                placeholder = f'[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}]'
-                report_content = report_content.replace(placeholder, diagram_html)
-            else:
-                print(f"⚠️ No matching content found for Scenario {scenario_id}")
-                placeholder = f'[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}]'
-                report_content = report_content.replace(placeholder, f"<div class='diagram-error'>No content found for Scenario {scenario_id}</div>")
-        
         return report_content
     
     async def generate_scenario_diagram(self, scenario_text: str, scenario_id: str, threats: List[Dict[str, Any]], product_name: str) -> str:
