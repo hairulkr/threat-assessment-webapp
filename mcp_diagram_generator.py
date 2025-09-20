@@ -2,6 +2,7 @@ from typing import Dict, Any, List
 from mcp_client import MermaidMCPClient
 import subprocess
 import os
+import re
 
 class MCPDiagramGenerator:
     """MCP-powered diagram generator with LLM context analysis"""
@@ -52,8 +53,6 @@ class MCPDiagramGenerator:
         print("🎯 Generating diagrams for each attack scenario...")
         
         # Find and replace diagram placeholders
-        import re
-        
         # Find all scenario placeholders
         placeholders = re.findall(r'\[DIAGRAM_PLACEHOLDER_SCENARIO_([A-Z0-9]+)\]', report_content)
         print("🔍 Full Report Content:")
@@ -123,42 +122,25 @@ class MCPDiagramGenerator:
     
     def generate_custom_attack_flow(self, steps: List[tuple], scenario_id: str, product_name: str) -> str:
         """Generate custom Mermaid diagram from parsed attack steps"""
-        
+
         if not steps:
             return f"graph LR\n    A[\"No attack steps found for Scenario {scenario_id}\"]"
-        
+
         # Clean product name for Mermaid
         clean_product = product_name.replace('"', '').replace("'", '').replace('\n', ' ')[:30]
-        
+
+        # Sanitize steps to remove HTML tags
+        sanitized_steps = [(re.sub(r'<[^>]*>', '', step_desc), mitre_id) for step_desc, mitre_id in steps]
+
         mermaid = f"graph LR\n    Start[\"Target: {clean_product}\"] --> Step1\n"
-        
+
         # Generate nodes for each step
-        for i, (step_desc, mitre_id) in enumerate(steps, 1):
+        for i, (step_desc, mitre_id) in enumerate(sanitized_steps, 1):
             step_name = f"Step{i}"
-            # Clean description for Mermaid syntax
-            clean_desc = step_desc.strip().replace('"', '').replace("'", '').replace('\n', ' ')[:35]
-            clean_mitre = mitre_id.strip().replace('"', '').replace("'", '')
-            
-            mermaid += f"    {step_name}[\"{clean_desc}<br/>{clean_mitre}\"]\n"
-            
-            # Connect to next step
-            if i < len(steps):
+            mermaid += f"    {step_name}[\"{step_desc} ({mitre_id})\"]\n"
+            if i < len(sanitized_steps):
                 mermaid += f"    {step_name} --> Step{i+1}\n"
-            else:
-                mermaid += f"    {step_name} --> End[\"Attack Complete\"]\n"
-        
-        # Add styling
-        mermaid += "\n    classDef critical fill:#dc3545,stroke:#721c24,color:#fff\n"
-        mermaid += "    classDef mitre fill:#6f42c1,stroke:#59359a,color:#fff\n"
-        mermaid += "    classDef target fill:#28a745,stroke:#1e7e34,color:#fff\n"
-        
-        # Apply styles to critical steps
-        critical_steps = [f"Step{i+1}" for i, (desc, _) in enumerate(steps) if any(word in desc.lower() for word in ['exploit', 'execute', 'escalate', 'exfiltrate'])]
-        if critical_steps:
-            mermaid += f"    class {','.join(critical_steps)} critical\n"
-        
-        mermaid += "    class Start,End target\n"
-        
+
         return mermaid
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
