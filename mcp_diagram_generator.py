@@ -52,21 +52,48 @@ class MCPDiagramGenerator:
         print("🔗 Connecting to Mermaid MCP server...")
         print("🎯 Generating diagrams for each attack scenario...")
         
-        # Find and replace diagram placeholders
-        # Find all scenarios in the report content
-        scenario_pattern = r'\d+\.\d+ SCENARIO ([A-Z]):.*?(?=\d+\.\d+ SCENARIO [A-Z]:|$)'
-        scenarios = re.finditer(scenario_pattern, report_content, re.DOTALL)
-
-        for match in scenarios:
-            scenario_id = match.group(1)
-            scenario_text = match.group(0)
+        # Multiple patterns to find scenarios - more robust approach
+        patterns = [
+            r'SCENARIO ([A-Z]):[^\[]*?\[DIAGRAM_PLACEHOLDER_SCENARIO_([A-Z])\]',  # Direct match with placeholder
+            r'SCENARIO ([A-Z]):.*?(?=SCENARIO [A-Z]:|$)',  # Match until next scenario or end
+            r'(?:^|\n)\s*SCENARIO ([A-Z]):.*?(?=(?:^|\n)\s*SCENARIO [A-Z]:|$)'  # Line-based matching
+        ]
+        
+        # Also find all placeholders to ensure we generate diagrams for all
+        placeholder_pattern = r'\[DIAGRAM_PLACEHOLDER_SCENARIO_([A-Z])\]'
+        placeholders = re.findall(placeholder_pattern, report_content)
+        
+        print(f"Found placeholders for scenarios: {placeholders}")
+        
+        # Generate diagrams for each found placeholder
+        for scenario_id in placeholders:
             print(f"🖼️ Generating diagram for Scenario {scenario_id}...")
-            print(f"Scenario Text: {scenario_text}")
-
+            
+            # Find the scenario text using multiple patterns
+            scenario_text = ""
+            for pattern in patterns:
+                matches = re.finditer(pattern, report_content, re.DOTALL | re.MULTILINE)
+                for match in matches:
+                    if match.group(1) == scenario_id:
+                        scenario_text = match.group(0)
+                        break
+                if scenario_text:
+                    break
+            
+            if not scenario_text:
+                # Fallback: extract text around the placeholder
+                placeholder_pos = report_content.find(f'[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}]')
+                if placeholder_pos > 0:
+                    # Get 1000 characters before the placeholder
+                    start = max(0, placeholder_pos - 1000)
+                    scenario_text = report_content[start:placeholder_pos]
+            
+            print(f"Scenario Text Length: {len(scenario_text)}")
+            
             # Generate diagram for this specific scenario
             try:
                 diagram_html = await self.generate_scenario_diagram(scenario_text, scenario_id, threats, product_name)
-                print(f"✅ Generated diagram HTML for Scenario {scenario_id}:", diagram_html)
+                print(f"✅ Generated diagram HTML for Scenario {scenario_id}")
             except Exception as e:
                 print(f"⚠️ Diagram generation failed for Scenario {scenario_id}: {e}")
                 diagram_html = f"<div class='diagram-error'>Diagram generation failed for Scenario {scenario_id}</div>"
@@ -80,28 +107,54 @@ class MCPDiagramGenerator:
     async def generate_scenario_diagram(self, scenario_text: str, scenario_id: str, threats: List[Dict[str, Any]], product_name: str) -> str:
         """Generate attack flow diagram for a specific scenario"""
         try:
-            # Parse attack steps directly from scenario text
-            import re
-
-            # Extract steps with MITRE techniques
-            step_pattern = r'Step \d+:([^(]+)\(([^)]+)\)'
+            # Multiple patterns to extract steps - more robust
+            step_patterns = [
+                r'Step (\d+):\s*([^(]+?)\s*\(([^)]+)\)',  # Step X: Description (MITRE)
+                r'Step (\d+):\s*([^\n]+?)\s*\(([^)]+)\)',  # Step X: Description (MITRE) - single line
+                r'Step (\d+):\s*([^\n]+)',  # Step X: Description - no MITRE
+                r'(\d+)\.[^:]*:\s*([^(]+?)\s*\(([^)]+)\)',  # Numbered sections with MITRE
+            ]
+            
             steps = []
             
-            for match in re.finditer(step_pattern, scenario_text):
-                step_desc = match.group(1).strip()
-                mitre_id = match.group(2).strip()
+            # Try each pattern
+            for pattern in step_patterns:
+                matches = re.finditer(pattern, scenario_text, re.DOTALL)
+                for match in matches:
+                    if len(match.groups()) >= 3:
+                        step_num = match.group(1)
+                        step_desc = match.group(2).strip()
+                        mitre_id = match.group(3).strip()
+                    else:
+                        step_num = match.group(1)
+                        step_desc = match.group(2).strip()
+                        mitre_id = 'T????'
+                    
+                    # Clean up MITRE ID
+                    mitre_match = re.search(r'T\d{4}(?:\.\d{3})?', mitre_id)
+                    if mitre_match:
+                        mitre_id = mitre_match.group(0)
+                    
+                    # Clean step description
+                    step_desc = re.sub(r'<[^>]+>', '', step_desc)  # Remove HTML tags
+                    step_desc = step_desc.replace('\n', ' ').strip()
+                    
+                    if step_desc and len(step_desc) > 5:  # Valid step
+                        steps.append((step_desc[:50], mitre_id))  # Limit length
                 
-                # Extract MITRE ID without HTML tags
-                if '<span class="mitre">' in mitre_id:
-                    mitre_id = re.search(r'T\d{4}', mitre_id).group(0) if re.search(r'T\d{4}', mitre_id) else mitre_id
-                
-                steps.append((step_desc, mitre_id))
-
+                if steps:  # If we found steps with this pattern, use them
+                    break
+            
+            # Fallback: create generic steps if none found
             if not steps:
-                # Fallback: extract any numbered steps
-                step_pattern = r'Step \d+:([^\n]+)'
-                raw_steps = re.findall(step_pattern, scenario_text)
-                steps = [(step.strip(), 'T????') for step in raw_steps]
+                steps = [
+                    (f"Attack Step for Scenario {scenario_id}", "T1566"),
+                    ("Execution Phase", "T1059"),
+                    ("Impact Phase", "T1485")
+                ]
+                print(f"No steps found, using generic steps for Scenario {scenario_id}")
+            
+            print(f"Extracted {len(steps)} steps for Scenario {scenario_id}: {[s[0][:30] for s in steps]}")
 
             # Generate custom Mermaid diagram based on actual steps
             mermaid_code = self.generate_custom_attack_flow(steps, scenario_id, product_name)

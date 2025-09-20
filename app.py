@@ -66,10 +66,11 @@ st.markdown("""
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 2rem;
-        border-radius: 10px;
+        border-radius: 15px;
         color: white;
         text-align: center;
-        margin-bottom: 2rem;
+        margin: 1rem 0 2rem 0;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     
     /* Progress bar styling */
@@ -317,26 +318,99 @@ class ThreatModelingWebApp:
                     st.markdown("---")
     
     def create_pdf_download(self, content: str, filename: str):
-        """Create PDF download with fallback to HTML"""
-        try:
-            from pdf_generator import create_pdf_with_weasyprint, create_simple_pdf
+        """Create PDF download with same format as threat assessment report"""
+        # Create full HTML with same styling as the report display
+        full_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background-color: #ffffff;
+                    color: #262730;
+                    margin: 0;
+                    padding: 20px;
+                    line-height: 1.6;
+                }}
+                .report-container {{
+                    width: 100%;
+                    margin: 0;
+                    background: #ffffff;
+                    padding: 15px;
+                    box-sizing: border-box;
+                }}
+                h1 {{
+                    color: #2c3e50;
+                    border-bottom: 3px solid #667eea;
+                    padding-bottom: 10px;
+                    margin-bottom: 20px;
+                }}
+                h2 {{
+                    color: #34495e;
+                    margin-top: 30px;
+                    border-left: 4px solid #667eea;
+                    padding-left: 15px;
+                }}
+                h3 {{
+                    color: #2c3e50;
+                    margin-top: 25px;
+                }}
+                .critical {{
+                    background-color: #fee;
+                    color: #c53030;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }}
+                .mitre {{
+                    background-color: #e6f3ff;
+                    color: #1a365d;
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    font-family: monospace;
+                    font-weight: bold;
+                }}
+                .mermaid {{
+                    text-align: center;
+                    margin: 20px 0;
+                    padding: 20px;
+                    background-color: #f8f9fa;
+                    border: 1px solid #dee2e6;
+                    border-radius: 5px;
+                }}
+                .diagram-container {{
+                    margin: 20px 0;
+                    page-break-inside: avoid;
+                }}
+            </style>
+            <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+        </head>
+        <body>
+            <div class="report-container">
+                {content}
+            </div>
             
-            # Try WeasyPrint first
-            pdf_link = create_pdf_with_weasyprint(content, filename)
-            if pdf_link:
-                return pdf_link
-            
-            # Try simple PDF generation
-            pdf_link = create_simple_pdf(content, filename)
-            if pdf_link:
-                return pdf_link
-        except ImportError:
-            pass
+            <script>
+                mermaid.initialize({{
+                    startOnLoad: true,
+                    theme: 'default',
+                    securityLevel: 'strict',
+                    flowchart: {{
+                        useMaxWidth: true,
+                        htmlLabels: false
+                    }}
+                }});
+            </script>
+        </body>
+        </html>
+        """
         
-        # Fallback: HTML download
-        st.info("📝 Downloading as HTML report")
-        b64 = base64.b64encode(content.encode()).decode()
-        href = f'<a href="data:text/html;base64,{b64}" download="{filename}">📥 Download HTML Report</a>'
+        # Create download link with full HTML including diagrams
+        b64 = base64.b64encode(full_html.encode()).decode()
+        href = f'<a href="data:text/html;base64,{b64}" download="{filename}">📥 Download Complete Report (HTML)</a>'
         return href
     
     def check_rate_limit(self):
@@ -680,7 +754,8 @@ class ThreatModelingWebApp:
                 # Download button
                 if st.session_state.report_content:
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"{st.session_state.product_name.replace(' ', '_')}_ThreatAssessment_{timestamp}.html"
+                    safe_product_name = st.session_state.product_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+                    filename = f"{safe_product_name}_assessment_{timestamp}.html"
                     
                     download_link = self.create_pdf_download(
                         st.session_state.report_content, 
