@@ -11,6 +11,7 @@ import sys
 from datetime import datetime
 import base64
 import time
+import streamlit.components.v1
 
 # Import required modules
 try:
@@ -595,6 +596,25 @@ class ThreatModelingWebApp:
                 <div><strong>{remaining_tries}</strong> assessments remaining</div>
             </div>
             """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            st.markdown("### 📚 Documentation")
+            
+            # Methodology link
+            methodology_path = os.path.join(os.path.dirname(__file__), "methodology.html")
+            if os.path.exists(methodology_path):
+                with open(methodology_path, 'r', encoding='utf-8') as f:
+                    methodology_content = f.read()
+                
+                if st.button("📋 View Methodology", use_container_width=True):
+                    # Create a new window/tab with methodology
+                    st.components.v1.html(f"""
+                    <script>
+                        window.open('data:text/html;charset=utf-8,' + encodeURIComponent(`{methodology_content}`), '_blank');
+                    </script>
+                    """, height=0)
+            else:
+                st.info("📋 Methodology documentation available")
         
         # Main content area
         col1, col2 = st.columns([2, 1])

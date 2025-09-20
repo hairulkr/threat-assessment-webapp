@@ -1,15 +1,13 @@
 from typing import Dict, Any, List
-from mcp_client import MermaidMCPClient
 import subprocess
 import os
 import re
 
 class MCPDiagramGenerator:
-    """MCP-powered diagram generator with LLM context analysis"""
+    """Diagram generator with LLM context analysis"""
     
     def __init__(self, llm_client):
         self.llm = llm_client
-        self.mcp_client = MermaidMCPClient()
     
     def generate_mermaid_html(self, diagram_code: str, title: str = "") -> str:
         """Generate HTML with embedded Mermaid diagram"""
@@ -170,11 +168,7 @@ class MCPDiagramGenerator:
     
     async def __aenter__(self):
         """Async context manager entry"""
-        try:
-            await self.mcp_client.start_server()
-            print("✅ MCP server started successfully")
-        except Exception as e:
-            print(f"⚠️ MCP server failed to start: {e}")
+        print("✅ Diagram generator ready")
         return self
     
     def generate_custom_attack_flow(self, steps: List[tuple], scenario_id: str, product_name: str) -> str:
@@ -198,29 +192,28 @@ class MCPDiagramGenerator:
             clean_mitre = mitre_id.strip()
             
             # Add step node
-            mermaid += f"    {step_name}[\"{clean_desc}\\n({clean_mitre})\"]"
+            mermaid += f"    {step_name}[\"{clean_desc}\\n{clean_mitre}\"]\n"
             
-            # Connect to previous step or start
+            # Connect steps
             if i == 1:
-                mermaid += f"\n    Start --> {step_name}\n"
+                mermaid += f"    Start --> {step_name}\n"
             else:
-                mermaid += f"\n    Step{i-1} --> {step_name}\n"
+                prev_step = f"Step{i-1}"
+                mermaid += f"    {prev_step} --> {step_name}\n"
         
-        # Add final outcome
-        mermaid += f"    Step{len(steps)} --> End[\"Attack Complete\"]\n"
+        # Add final impact
+        mermaid += f"    Step{len(steps)} --> Impact[\"Impact Achieved\"]\n\n"
         
         # Add styling
-        mermaid += "\n    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px\n"
-        mermaid += "    classDef critical fill:#ffebee,stroke:#d32f2f,stroke-width:3px\n"
-        mermaid += "    classDef start fill:#e8f5e8,stroke:#4caf50,stroke-width:2px\n"
-        mermaid += "    \n    class Start start\n"
-        mermaid += "    class End critical\n"
-
+        mermaid += """    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px
+    classDef critical fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    classDef start fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    
+    class Start start
+    class Impact critical"""
+        
         return mermaid
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
-        try:
-            await self.mcp_client.close()
-        except Exception as e:
-            print(f"⚠️ MCP server close error: {e}")
+        pass
