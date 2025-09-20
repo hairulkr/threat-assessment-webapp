@@ -14,7 +14,7 @@ class MCPDiagramGenerator:
         <div class="diagram-container">
             <h3>{title}</h3>
             <div class="mermaid">
-{diagram_code}
+                {diagram_code}
             </div>
         </div>
         """
