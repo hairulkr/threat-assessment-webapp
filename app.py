@@ -728,16 +728,40 @@ class ThreatModelingWebApp:
                     </div>
                     
                     <script>
+                        // Initialize Mermaid with proper configuration
                         mermaid.initialize({{
                             startOnLoad: true,
                             theme: 'default',
                             securityLevel: 'loose',
+                            flowchart: {{
+                                useMaxWidth: true,
+                                htmlLabels: true
+                            }},
                             themeVariables: {{
                                 background: '#ffffff',
                                 primaryColor: '#667eea',
-                                primaryTextColor: '#262730'
+                                primaryTextColor: '#262730',
+                                fontFamily: 'Arial, sans-serif'
                             }}
                         }});
+                        
+                        // Force render all mermaid diagrams
+                        function renderMermaid() {{
+                            const mermaidElements = document.querySelectorAll('.mermaid');
+                            mermaidElements.forEach((element, index) => {{
+                                if (!element.getAttribute('data-processed')) {{
+                                    try {{
+                                        mermaid.render(`mermaid-${{index}}`, element.textContent, (svgCode) => {{
+                                            element.innerHTML = svgCode;
+                                            element.setAttribute('data-processed', 'true');
+                                        }});
+                                    }} catch (error) {{
+                                        console.error('Mermaid render error:', error);
+                                        element.innerHTML = '<p>Diagram rendering failed</p>';
+                                    }}
+                                }}
+                            }});
+                        }}
                         
                         // Dynamic height adjustment
                         function adjustHeight() {{
@@ -757,18 +781,24 @@ class ThreatModelingWebApp:
                             }}, '*');
                         }}
                         
-                        // Adjust height after content loads
+                        // Initialize everything when DOM is ready
+                        document.addEventListener('DOMContentLoaded', function() {{
+                            setTimeout(() => {{
+                                renderMermaid();
+                                setTimeout(adjustHeight, 1000);
+                            }}, 500);
+                        }});
+                        
+                        // Fallback for window load
                         window.addEventListener('load', () => {{
-                            setTimeout(adjustHeight, 500);
+                            setTimeout(() => {{
+                                renderMermaid();
+                                setTimeout(adjustHeight, 1000);
+                            }}, 1000);
                         }});
                         
-                        // Adjust height after Mermaid renders
-                        mermaid.init().then(() => {{
-                            setTimeout(adjustHeight, 1000);
-                        }});
-                        
-                        // Periodic height adjustment for dynamic content
-                        setInterval(adjustHeight, 2000);
+                        // Periodic height adjustment
+                        setInterval(adjustHeight, 3000);
                     </script>
                 </body>
                 </html>
