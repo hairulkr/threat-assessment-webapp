@@ -170,67 +170,57 @@ class MCPDiagramGenerator:
     
     async def __aenter__(self):
         """Async context manager entry"""
-        await self.mcp_client.start_server()
+        try:
+            await self.mcp_client.start_server()
+            print("✅ MCP server started successfully")
+        except Exception as e:
+            print(f"⚠️ MCP server failed to start: {e}")
         return self
     
     def generate_custom_attack_flow(self, steps: List[tuple], scenario_id: str, product_name: str) -> str:
         """Generate custom Mermaid diagram from parsed attack steps"""
 
         if not steps:
-            return f"graph LR\n    A[\"No attack steps found for Scenario {scenario_id}\"]"
+            return f"graph TD\n    A[\"Scenario {scenario_id}: No Steps Found\"]"
 
         # Clean product name for Mermaid
-        clean_product = product_name.replace('"', '').replace("'", '').replace('\n', ' ')[:30]
+        clean_product = product_name.replace('"', '').replace("'", '').replace('\n', ' ')[:25]
 
-        # Define color codes for different MITRE categories
-        category_colors = {
-            "Initial Access": "#ff9999",
-            "Execution": "#ffcc99",
-            "Persistence": "#ffff99",
-            "Privilege Escalation": "#ccff99",
-            "Defense Evasion": "#99ff99",
-            "Credential Access": "#99ffcc",
-            "Discovery": "#99ccff",
-            "Lateral Movement": "#9999ff",
-            "Collection": "#cc99ff",
-            "Exfiltration": "#ff99cc",
-            "Impact": "#ff6699"
-        }
-
-        mermaid = f"graph TD\n    Start[\"Target: {clean_product}\"] --> Step1\n"
-
+        # Simplified attack flow - more reliable
+        mermaid = f"graph TD\n    Start[\"Target: {clean_product}\"]\n"
+        
+        # Add each step in sequence
         for i, (step_desc, mitre_id) in enumerate(steps, 1):
             step_name = f"Step{i}"
-            decision_name = f"Decision{i}"
-
-            # Determine the category color
-            category = "Unknown"
-            for cat in category_colors:
-                if cat in step_desc:
-                    category = cat
-                    break
-
-            color = category_colors.get(category, "#d3d3d3")  # Default to gray if category is unknown
-
-            # Add the step node with color
-            # Clean and format the step description and MITRE ID
-            clean_desc = step_desc.replace('"', '').replace("'", '').strip()
+            
+            # Clean and shorten description
+            clean_desc = step_desc.replace('"', '').replace("'", '').replace('\n', ' ').strip()[:40]
             clean_mitre = mitre_id.strip()
-            mermaid += f"    {step_name}[\"{clean_desc} ({clean_mitre})\"]:::step{i}\n"
-            mermaid += f"    classDef step{i} fill:{color},stroke:#000,stroke-width:2px;\n"
-
-            # Add a decision node after each step
-            mermaid += f"    {step_name} --> {decision_name}{{\"Mitigation Decision\"}}\n"
-
-            # Add paths for the decision node
-            mermaid += f"    {decision_name} -->|Mitigated| Step{i+1 if i < len(steps) else 'End'}\n"
-            mermaid += f"    {decision_name} -->|Not Mitigated| Step{i+1 if i < len(steps) else 'End'}\n"
-
-        # Add an end node
-        mermaid += "    End[\"Attack Flow Complete\"]\n"
+            
+            # Add step node
+            mermaid += f"    {step_name}[\"{clean_desc}\\n({clean_mitre})\"]"
+            
+            # Connect to previous step or start
+            if i == 1:
+                mermaid += f"\n    Start --> {step_name}\n"
+            else:
+                mermaid += f"\n    Step{i-1} --> {step_name}\n"
+        
+        # Add final outcome
+        mermaid += f"    Step{len(steps)} --> End[\"Attack Complete\"]\n"
+        
+        # Add styling
+        mermaid += "\n    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px\n"
+        mermaid += "    classDef critical fill:#ffebee,stroke:#d32f2f,stroke-width:3px\n"
+        mermaid += "    classDef start fill:#e8f5e8,stroke:#4caf50,stroke-width:2px\n"
+        mermaid += "    \n    class Start start\n"
+        mermaid += "    class End critical\n"
 
         return mermaid
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
-        await self.mcp_client.close()
+        try:
+            await self.mcp_client.close()
+        except Exception as e:
+            print(f"⚠️ MCP server close error: {e}")
