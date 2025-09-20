@@ -14,47 +14,9 @@ class ReportAgent:
         os.makedirs(self.reports_dir, exist_ok=True)
     
     def determine_scenario_types(self, threats):
-        """Determine scenario types based on specific CVE findings and threat intelligence"""
-        scenario_types = []
-        
-        if not threats:
-            return ["SCENARIO A: Generic Attack", "SCENARIO B: System Compromise", "SCENARIO C: Data Breach"]
-        
-        # Get top 3 threats for different scenarios
-        top_threats = threats[:3]
-        
-        for i, threat in enumerate(top_threats):
-            cve_id = threat.get('cve_id', 'Unknown')
-            severity = threat.get('severity', 'UNKNOWN')
-            description = threat.get('description', '').lower()
-            
-            scenario_letter = chr(65 + i)  # A, B, C
-            
-            # Create scenario based on specific CVE characteristics
-            if 'remote' in description or 'network' in description or threat.get('cvss_score', 0) >= 8.0:
-                scenario_types.append(f"SCENARIO {scenario_letter}: Remote Code Execution via {cve_id}")
-            elif 'privilege' in description or 'authentication' in description or 'authorization' in description:
-                scenario_types.append(f"SCENARIO {scenario_letter}: Privilege Escalation via {cve_id}")
-            elif 'disclosure' in description or 'exposure' in description or 'injection' in description:
-                scenario_types.append(f"SCENARIO {scenario_letter}: Data Exfiltration via {cve_id}")
-            elif 'denial' in description or 'crash' in description or 'availability' in description:
-                scenario_types.append(f"SCENARIO {scenario_letter}: Availability Attack via {cve_id}")
-            elif 'dependency' in description or 'supply' in description or 'extension' in description:
-                scenario_types.append(f"SCENARIO {scenario_letter}: Supply Chain Attack via {cve_id}")
-            else:
-                # Generic based on severity
-                if severity in ['CRITICAL', 'HIGH']:
-                    scenario_types.append(f"SCENARIO {scenario_letter}: Critical Exploitation via {cve_id}")
-                else:
-                    scenario_types.append(f"SCENARIO {scenario_letter}: System Compromise via {cve_id}")
-        
-        # Ensure we have exactly 3 different scenarios
-        if len(scenario_types) < 3:
-            remaining_letters = ['A', 'B', 'C'][len(scenario_types):]
-            for letter in remaining_letters:
-                scenario_types.append(f"SCENARIO {letter}: Generic Attack Scenario")
-        
-        return scenario_types[:3]
+        """Let LLM determine scenario types dynamically based on threat intelligence"""
+        # Return empty list - let LLM analyze threats and create scenarios dynamically
+        return []
     
     def clean_llm_response(self, content: str) -> str:
         """Remove unwanted content from LLM responses"""
@@ -224,121 +186,67 @@ class ReportAgent:
         scenario_types = self.determine_scenario_types(threats)
         
         report_prompt = f"""
-        Generate a technical threat modeling report based on the collected data.
+        Generate a technical threat modeling report based on the collected threat intelligence data.
         
-        THREAT INTELLIGENCE DATA:
+        THREAT INTELLIGENCE FINDINGS:
         Product: {all_data.get('product_name', 'Unknown')}
         
-        SCENARIO TYPES TO GENERATE: {scenario_types}
-        
-        TOP THREATS (Multi-Agent Ranked):
+        17-SOURCE INTELLIGENCE DATA:
         {json.dumps([{
             'cve_id': t.get('cve_id', 'N/A'),
             'title': t.get('title', ''),
             'severity': t.get('severity', ''),
             'cvss_score': t.get('cvss_score', 0),
             'source': t.get('source', ''),
-            'authority': t.get('authority', ''),
-            'ensemble_score': t.get('ensemble_score', 0),
-            'description': t.get('description', '')[:200]
-        } for t in all_data.get('threats', [])[:8]], indent=2)}
+            'description': t.get('description', ''),
+            'exploit_available': t.get('exploit_available', False)
+        } for t in all_data.get('threats', [])], indent=2)}
         
-        PRODUCT COMPONENTS:
-        {json.dumps(all_data.get('product_info', {}).get('components', []), indent=2)}
+        THREAT CONTEXT:
+        {json.dumps(all_data.get('threat_context', {}), indent=2)}
         
-        RISK ANALYSIS:
-        {json.dumps(all_data.get('risk_analysis', {}), indent=2)}
-        
+        RISK ASSESSMENT:
+        {json.dumps(all_data.get('risks', {}), indent=2)}
         
         Create a threat modeling report with these sections:
         
         1. EXECUTIVE SUMMARY
-           - Key vulnerabilities found
+           - Key vulnerabilities found from threat intelligence
            - Critical risks identified
            - Immediate actions needed
         
         2. THREAT INTELLIGENCE ANALYSIS
-           Focus on:
-           - **Recent Attack Trends:** Latest available attack patterns targeting this technology
-           - **CVE Analysis:** Detailed vulnerability analysis with CVSS scores and exploit availability from threat intelligence
+           - **Recent Attack Trends:** Based on threat context and intelligence sources
+           - **CVE Analysis:** Analysis of specific CVEs found with CVSS scores and exploit status
         
-        3. DETAILED THREAT MODELING SCENARIOS (MAX 3)
-           Create exactly 3 different types of comprehensive threat modeling scenarios based on actual threats:
+        3. ATTACK SCENARIOS (MAX 3)
+           Analyze the threat intelligence findings above and create 3 different attack scenarios.
+           Each scenario should be based on actual CVE/vulnerability findings.
            
-           **Determine scenario types based on threat intelligence:**
-           - If CRITICAL/HIGH CVE with remote exploit: **SCENARIO A: Remote Code Execution Attack**
-           - If authentication/access control issues: **SCENARIO B: Privilege Escalation Attack** 
-           - If data exposure/injection vulnerabilities: **SCENARIO C: Data Exfiltration Attack**
-           - If denial of service vulnerabilities: **SCENARIO D: Availability Attack**
-           - If supply chain/dependency issues: **SCENARIO E: Supply Chain Attack**
+           For each scenario:
+           - Base the attack on specific CVE(s) from the findings
+           - Create realistic attack phases based on the vulnerability type
+           - Map to appropriate MITRE ATT&CK techniques based on the attack method
+           - Include technical details from the threat intelligence
            
-           **Generate these specific scenario types based on actual CVE findings: {scenario_types}**
+           Structure each scenario as:
+           **SCENARIO [A/B/C]: [Attack Type based on CVE findings]**
            
-           Each scenario MUST be based on actual CVE/threat intelligence findings from the data above.
-           Create different attack scenarios using the specific CVEs and vulnerabilities found:
+           Create attack phases that logically follow from the specific vulnerability:
+           - Start with how the CVE would be discovered/exploited
+           - Follow the natural progression of the attack
+           - Map each phase to relevant MITRE ATT&CK techniques
+           - Include timeline, difficulty, and detection ratings
            
-           For each scenario, create a comprehensive attack chain that follows the specific CVE exploitation path:
-           
-           **Comprehensive Threat Modeling Analysis:**
-           
-           **Phase 1: Reconnaissance & Target Identification** (MITRE T1595)
-           - Latest reconnaissance campaigns targeting similar tools and platforms
-           - Product-specific reconnaissance techniques observed in most recent attacks
-           - Attack surface enumeration methods from latest available breach reports
-           - Information gathering tactics used in current threat actor campaigns
-           - Timeline: 1-7 days | Difficulty: Low | Detection: Medium
-           
-           **Phase 2: Initial Access & Exploitation** (MITRE T1190/T1566)
-           - **Latest Attack Patterns:** Most recent exploitation techniques targeting this technology stack
-           - **Current CVE Exploitation:** Vulnerabilities being actively exploited based on latest intelligence
-           - **Threat Actor Tools:** Exploit kits and payloads from most recent campaigns against similar platforms
-           - **Entry Point Analysis:** Attack vectors observed in latest available breaches of comparable software
-           - Timeline: 15 minutes - 2 hours | Difficulty: Medium | Detection: High
-           
-           **Phase 3: Execution & Persistence** (MITRE T1059/T1053)
-           - **Latest Execution Techniques:** Code execution methods from most recent attacks
-           - **Current Persistence Tactics:** Mechanisms observed in latest campaigns against similar tools
-           - **Modern Evasion Methods:** Anti-detection techniques from most recent threat actor playbooks
-           - **Living-off-the-Land:** Latest available LOLBAS techniques targeting this technology stack
-           - Timeline: 5-30 minutes | Difficulty: Medium | Detection: Medium
-           
-           **Phase 4: Privilege Escalation** (MITRE T1068/T1055)
-           - Escalation paths specific to the product architecture and deployment model
-           - Local privilege escalation techniques relevant to this technology stack
-           - Container/service account abuse patterns seen in similar tool compromises
-           - Recent privilege escalation techniques used against comparable platforms
-           - Timeline: 10 minutes - 2 hours | Difficulty: High | Detection: Medium
-           
-           **Phase 5: Defense Evasion & Lateral Movement** (MITRE T1070/T1021)
-           - Log evasion and artifact cleanup specific to this product type
-           - Network propagation techniques leveraging product-specific protocols
-           - Credential harvesting methods targeting this technology environment
-           - Lateral movement patterns observed in recent attacks on similar tools
-           - Timeline: 2-24 hours | Difficulty: High | Detection: Low
-           
-           **Phase 6: Data Discovery & Collection** (MITRE T1083/T1005)
-           - Data location and classification methods for this product type
-           - Sensitive information extraction techniques specific to this technology
-           - Database and file system access patterns relevant to this platform
-           - Recent data collection techniques used against similar tools
-           - Timeline: 1-48 hours | Difficulty: Medium | Detection: Medium
-           
-           **Phase 7: Exfiltration & Impact** (MITRE T1041/T1486)
-           - Data exfiltration channels and methods used in recent attacks
-           - Business impact assessment based on similar tool compromises
-           - Potential for ransomware or destruction based on recent threat actor behavior
-           - Real-world impact examples from latest available attacks on comparable platforms
-           - Timeline: 30 minutes - 4 hours | Difficulty: Medium | Detection: High
+           End each scenario with: [DIAGRAM_PLACEHOLDER_SCENARIO_[A/B/C]] 
            
            **For each phase include:**
            - Specific technical implementation details and commands
            - Tools and techniques used in recent real-world attacks
            - Detection signatures, IOCs, and monitoring recommendations
            - Mitigation strategies and security controls
-           - References to actual attacks on similar tools from latest available intelligence
+           - References to actual attacks on from latest available intelligence
            - Risk assessment and business impact analysis
-           
-           End each scenario with: [DIAGRAM_PLACEHOLDER_SCENARIO_X]
         
         4. SECURITY CONTROLS & MITIGATIONS
            Map specific controls to attack steps with implementation details:
