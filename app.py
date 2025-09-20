@@ -919,8 +919,6 @@ class ThreatModelingWebApp:
                 - **Ensemble Scoring:** Authority weight × Recency factor × CVSS normalized × Relevance score
                 - **Priority Algorithm:** Official sources (3x weight) → Verified sources (2x) → Community (1x) with exploit availability boost
                 - **Accuracy Enhancement:** ThreatAccuracyEnhancer filters by exploit availability, patch status, attack complexity, detection difficulty
-                
-                **📈 Intelligent Processing:** Multi-agent ranking with threat-specific attack flows and scenario differentiation based on actual CVE findings
                 """)
             
             if st.session_state.assessment_complete:

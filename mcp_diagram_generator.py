@@ -184,34 +184,70 @@ class MCPDiagramGenerator:
         # Determine scenario type from text
         scenario_lower = scenario_text.lower()
         
-        if 'remote code execution' in scenario_lower or 'remote exploit' in scenario_lower:
+        if 'remote code execution' in scenario_lower or 'rce' in scenario_lower or 'remote exploit' in scenario_lower:
             # Remote Code Execution Attack Flow
             phases = [
-                ("Network Reconnaissance", "T1595"),
-                ("Remote Vulnerability Scan", "T1595.002"),
-                ("Remote Code Execution", "T1190"),
-                ("Command & Control", "T1071"),
+                ("Vulnerability Discovery", "T1595"),
+                ("Payload Crafting", "T1588.004"),
+                ("Code Injection", "T1190"),
+                ("Command Execution", "T1059"),
                 ("System Compromise", "T1486")
             ]
-        elif 'privilege escalation' in scenario_lower or 'authentication' in scenario_lower:
+        elif 'privilege escalation' in scenario_lower or 'privesc' in scenario_lower:
             # Privilege Escalation Attack Flow
             phases = [
                 ("Initial Access", "T1078"),
-                ("Credential Discovery", "T1552"),
-                ("Privilege Escalation", "T1068"),
-                ("Persistence", "T1053"),
-                ("Administrative Access", "T1078.003")
+                ("User Enumeration", "T1087"),
+                ("Privilege Discovery", "T1033"),
+                ("Exploit Weakness", "T1068"),
+                ("Admin Access", "T1078.003")
             ]
-        elif 'data exfiltration' in scenario_lower or 'data exposure' in scenario_lower:
+        elif 'data exfiltration' in scenario_lower or 'data breach' in scenario_lower:
             # Data Exfiltration Attack Flow
             phases = [
-                ("Initial Compromise", "T1190"),
+                ("Access Gained", "T1190"),
                 ("Data Discovery", "T1083"),
-                ("Data Collection", "T1005"),
-                ("Data Staging", "T1074"),
-                ("Data Exfiltration", "T1041")
+                ("Data Classification", "T1005"),
+                ("Exfiltration Prep", "T1074"),
+                ("External Transfer", "T1041")
             ]
-        elif 'availability' in scenario_lower or 'denial of service' in scenario_lower:
+        elif 'sql injection' in scenario_lower or 'sqli' in scenario_lower:
+            # SQL Injection Attack Flow
+            phases = [
+                ("Input Field Discovery", "T1595"),
+                ("SQL Injection Test", "T1190"),
+                ("Database Enumeration", "T1083"),
+                ("Schema Discovery", "T1005"),
+                ("Data Extraction", "T1041")
+            ]
+        elif 'cross-site scripting' in scenario_lower or 'xss' in scenario_lower:
+            # XSS Attack Flow
+            phases = [
+                ("Input Validation Bypass", "T1190"),
+                ("Script Injection", "T1059.007"),
+                ("User Interaction", "T1204"),
+                ("Session Hijacking", "T1539"),
+                ("Account Takeover", "T1078")
+            ]
+        elif 'buffer overflow' in scenario_lower:
+            # Buffer Overflow Attack Flow
+            phases = [
+                ("Buffer Analysis", "T1595"),
+                ("Overflow Point Discovery", "T1068"),
+                ("Shellcode Development", "T1588.004"),
+                ("Memory Corruption", "T1055"),
+                ("Code Execution", "T1059")
+            ]
+        elif 'authentication bypass' in scenario_lower or 'auth bypass' in scenario_lower:
+            # Authentication Bypass Attack Flow
+            phases = [
+                ("Auth Mechanism Analysis", "T1595"),
+                ("Weakness Identification", "T1552"),
+                ("Bypass Technique", "T1078"),
+                ("Unauthorized Access", "T1078.004"),
+                ("System Compromise", "T1486")
+            ]
+        elif 'availability' in scenario_lower or 'denial of service' in scenario_lower or 'dos' in scenario_lower:
             # Availability Attack Flow
             phases = [
                 ("Target Identification", "T1595"),
@@ -230,22 +266,30 @@ class MCPDiagramGenerator:
                 ("Widespread Impact", "T1486")
             ]
         else:
-            # Generic attack flow based on threat intelligence
+            # CVE-specific attack flow based on threat intelligence
             if threats:
                 top_threat = threats[0]
                 cve_id = top_threat.get('cve_id', 'Unknown')
-                severity = top_threat.get('severity', 'UNKNOWN')
+                description = top_threat.get('description', '').lower()
                 
-                if 'remote' in top_threat.get('description', '').lower():
-                    phases.append((f"Remote Exploit {cve_id}", "T1190"))
+                if 'remote' in description:
+                    phases = [
+                        (f"CVE {cve_id} Discovery", "T1595"),
+                        ("Remote Exploitation", "T1190"),
+                        ("Code Execution", "T1059"),
+                        ("System Compromise", "T1486")
+                    ]
+                elif 'privilege' in description:
+                    phases = [
+                        (f"CVE {cve_id} Exploit", "T1068"),
+                        ("Privilege Escalation", "T1068"),
+                        ("Admin Access", "T1078.003")
+                    ]
                 else:
-                    phases.append((f"Local Exploit {cve_id}", "T1068"))
-                
-                phases.extend([
-                    ("Code Execution", "T1059"),
-                    ("Persistence", "T1053"),
-                    ("Impact", "T1486")
-                ])
+                    phases = [
+                        (f"CVE {cve_id} Exploit", "T1190"),
+                        ("System Impact", "T1486")
+                    ]
         
         return phases if phases else []
     
