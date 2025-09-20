@@ -606,22 +606,32 @@ class ThreatModelingWebApp:
                 st.session_state.show_methodology = True
                 st.rerun()
             
-            # Show methodology in sidebar if requested
             if st.session_state.get('show_methodology', False):
                 if st.button("❌ Close Methodology", use_container_width=True):
                     st.session_state.show_methodology = False
                     st.rerun()
+        
+        # Check if methodology should be displayed
+        if st.session_state.get('show_methodology', False):
+            # Back to assessment link
+            if st.button("← Back to Assessment", type="secondary"):
+                st.session_state.show_methodology = False
+                st.rerun()
+            
+            # Display methodology in full width
+            st.header("📋 Methodology Documentation")
+            
+            methodology_path = os.path.join(os.path.dirname(__file__), "methodology.html")
+            if os.path.exists(methodology_path):
+                with open(methodology_path, 'r', encoding='utf-8') as f:
+                    methodology_content = f.read()
                 
-                methodology_path = os.path.join(os.path.dirname(__file__), "methodology.html")
-                if os.path.exists(methodology_path):
-                    with open(methodology_path, 'r', encoding='utf-8') as f:
-                        methodology_content = f.read()
-                    
-                    # Display methodology in an expander
-                    with st.expander("📋 Methodology Documentation", expanded=True):
-                        st.components.v1.html(methodology_content, height=600, scrolling=True)
-                else:
-                    st.error("Methodology file not found")
+                # Display methodology with full page width
+                st.components.v1.html(methodology_content, height=800, scrolling=True)
+            else:
+                st.error("Methodology file not found")
+            
+            return  # Exit early to show only methodology
         
         # Main content area
         col1, col2 = st.columns([2, 1])
