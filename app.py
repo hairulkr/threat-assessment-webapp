@@ -448,19 +448,7 @@ class ThreatModelingWebApp:
             
         return True
     
-    def check_daily_limit(self):
-        """Daily usage limit"""
-        today = datetime.now().date()
-        if 'usage_date' not in st.session_state or st.session_state.usage_date != today:
-            st.session_state.usage_count = 0
-            st.session_state.usage_date = today
-        
-        if st.session_state.usage_count >= 10:
-            st.error("🚫 Daily limit reached (10 assessments). Try again tomorrow.")
-            return False
-        
-        st.session_state.usage_count += 1
-        return True
+
     
     def check_authentication(self):
         """Simple password authentication"""
@@ -535,21 +523,36 @@ class ThreatModelingWebApp:
             for i, step in enumerate(steps, 1):
                 st.markdown(f"{i}. {step}")
             
-            # Usage tracker
+            # Usage tracker - dynamically updated
             usage_tracker = st.session_state.usage_tracker
             remaining_tries = usage_tracker.get_remaining_tries()
             
             st.markdown("### 🔒 Daily Assessment Quota")
+            
+            # Dynamic color based on remaining tries
+            if remaining_tries > 5:
+                bg_color = "#e8f5e8"
+                border_color = "#4caf50"
+                text_color = "#2e7d32"
+            elif remaining_tries > 2:
+                bg_color = "#fff3e0"
+                border_color = "#ff9800"
+                text_color = "#e65100"
+            else:
+                bg_color = "#ffe1e9"
+                border_color = "#ffb1c7"
+                text_color = "#9b2542"
+            
             st.markdown(f"""
             <div style="
-                background-color: #ffe1e9;
+                background-color: {bg_color};
                 border-radius: 4px;
-                border: 1px solid #ffb1c7;
-                color: #9b2542;
+                border: 1px solid {border_color};
+                color: {text_color};
                 padding: 16px;
                 margin-top: 8px;
             ">
-                <div>{remaining_tries} assessments remaining</div>
+                <div><strong>{remaining_tries}</strong> assessments remaining</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -698,12 +701,18 @@ class ThreatModelingWebApp:
                     st.stop()
                 if not self.validate_input(product_name):
                     st.stop()
-                if not self.check_daily_limit():
+                
+                # Check daily limit using usage tracker
+                usage_tracker = st.session_state.usage_tracker
+                if usage_tracker.get_remaining_tries() <= 0:
+                    st.error("🚫 Daily limit reached (10 assessments). Try again tomorrow.")
                     st.stop()
                 
                 st.session_state.product_name = product_name
                 report_content, all_data = asyncio.run(self.run_assessment(product_name))
                 if report_content:
+                    # Increment usage after successful assessment
+                    usage_tracker.increment_usage()
                     st.session_state.report_content = report_content
                     st.session_state.all_data = all_data
                     st.session_state.assessment_complete = True
@@ -712,12 +721,18 @@ class ThreatModelingWebApp:
             elif example_button:
                 if not self.check_rate_limit():
                     st.stop()
-                if not self.check_daily_limit():
+                
+                # Check daily limit using usage tracker
+                usage_tracker = st.session_state.usage_tracker
+                if usage_tracker.get_remaining_tries() <= 0:
+                    st.error("🚫 Daily limit reached (10 assessments). Try again tomorrow.")
                     st.stop()
                 
                 st.session_state.product_name = "Visual Studio Code"
                 report_content, all_data = asyncio.run(self.run_assessment("Visual Studio Code"))
                 if report_content:
+                    # Increment usage after successful assessment
+                    usage_tracker.increment_usage()
                     st.session_state.report_content = report_content
                     st.session_state.all_data = all_data
                     st.session_state.assessment_complete = True
