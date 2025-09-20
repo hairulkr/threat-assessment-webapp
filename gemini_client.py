@@ -3,7 +3,7 @@ import google.generativeai as genai
 import streamlit as st
 
 class GeminiClient:
-    """Gemini API client wrapper using google.genai package"""
+    """Gemini API client wrapper using google.generativeai package"""
     
     def __init__(self, api_key: str = None):
         # Try Streamlit secrets first, then environment variable
@@ -15,15 +15,13 @@ class GeminiClient:
             except:
                 self.api_key = os.getenv('GEMINI_API_KEY')
         
-        # Explicitly set the API key to avoid confusion with GOOGLE_API_KEY
-        self.client = genai.Client(api_key=self.api_key)
+        # Configure the API key
+        genai.configure(api_key=self.api_key)
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
     
     async def generate(self, prompt: str, max_tokens: int = 150) -> str:
         try:
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt
-            )
+            response = self.model.generate_content(prompt)
             return response.text
         except Exception as e:
             print(f"Gemini API error: {e}")
