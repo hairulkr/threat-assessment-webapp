@@ -24,7 +24,7 @@ st.set_page_config(
     page_title="Cybersecurity Threat Assessment",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 
 # Custom CSS to increase sidebar width
@@ -63,11 +63,11 @@ st.markdown("""
     /* Mobile Responsive Design */
     @media (max-width: 768px) {
         section[data-testid="stSidebar"] {
-            width: 100% !important;
-            min-width: 100% !important;
+            display: none !important;
         }
         .main .block-container {
             padding: 0.5rem !important;
+            margin-left: 0 !important;
         }
         .stButton > button {
             width: 100% !important;
@@ -79,6 +79,10 @@ st.markdown("""
         .stForm {
             padding: 0.5rem !important;
         }
+        .main-header {
+            padding: 1rem !important;
+            margin-bottom: 1rem !important;
+        }
     }
     
     @media (max-width: 480px) {
@@ -86,11 +90,17 @@ st.markdown("""
             padding: 0.25rem !important;
         }
         h1 {
-            font-size: 1.5rem !important;
+            font-size: 1.2rem !important;
         }
         .stButton > button {
+            font-size: 0.8rem !important;
+            padding: 0.4rem !important;
+        }
+        .main-header h1 {
+            font-size: 1.3rem !important;
+        }
+        .main-header p {
             font-size: 0.9rem !important;
-            padding: 0.5rem !important;
         }
     }
 </style>
@@ -817,7 +827,9 @@ class ThreatModelingWebApp:
                 # Estimate height: 20px per line + 400px per diagram + base height
                 estimated_height = max(word_count * 2 + diagram_count * 400 + 500, 1000)
                 
-                st.components.v1.html(mermaid_html, height=estimated_height, scrolling=False)
+                # Use unique key to force re-render for new assessments
+                report_key = f"report_{st.session_state.product_name}_{hash(st.session_state.report_content[:100])}"
+                st.components.v1.html(mermaid_html, height=estimated_height, scrolling=True, key=report_key)
             
             # Reset button
             if st.button("🔄 New Assessment"):
