@@ -13,6 +13,66 @@ class ReportAgent:
         self.diagram_generator = MCPDiagramGenerator(self.llm)
         os.makedirs(self.reports_dir, exist_ok=True)
     
+    def determine_scenario_types(self, threats):
+        """Determine scenario types based on threat intelligence characteristics"""
+        scenario_types = []
+        
+        if not threats:
+            return ["SCENARIO A: Generic Attack", "SCENARIO B: System Compromise", "SCENARIO C: Data Breach"]
+        
+        # Analyze threat characteristics
+        has_remote_exploit = any('remote' in t.get('description', '').lower() or 
+                               'network' in t.get('description', '').lower() or
+                               t.get('cvss_score', 0) >= 7.0 for t in threats)
+        
+        has_auth_issues = any('authentication' in t.get('description', '').lower() or
+                            'authorization' in t.get('description', '').lower() or
+                            'privilege' in t.get('description', '').lower() for t in threats)
+        
+        has_data_exposure = any('disclosure' in t.get('description', '').lower() or
+                              'exposure' in t.get('description', '').lower() or
+                              'leak' in t.get('description', '').lower() or
+                              'injection' in t.get('description', '').lower() for t in threats)
+        
+        has_dos_issues = any('denial' in t.get('description', '').lower() or
+                           'crash' in t.get('description', '').lower() or
+                           'availability' in t.get('description', '').lower() for t in threats)
+        
+        has_supply_chain = any('dependency' in t.get('description', '').lower() or
+                             'supply' in t.get('description', '').lower() or
+                             'third-party' in t.get('description', '').lower() for t in threats)
+        
+        # Determine scenario types based on threat analysis
+        if has_remote_exploit:
+            scenario_types.append("SCENARIO A: Remote Code Execution Attack")
+        
+        if has_auth_issues:
+            scenario_types.append("SCENARIO B: Privilege Escalation Attack")
+        elif has_data_exposure:
+            scenario_types.append("SCENARIO B: Data Exfiltration Attack")
+        
+        if has_dos_issues:
+            scenario_types.append("SCENARIO C: Availability Attack")
+        elif has_supply_chain:
+            scenario_types.append("SCENARIO C: Supply Chain Attack")
+        elif len(scenario_types) < 2:
+            scenario_types.append("SCENARIO C: System Compromise Attack")
+        
+        # Ensure we have exactly 3 scenarios
+        if len(scenario_types) < 3:
+            remaining_types = [
+                "SCENARIO A: Remote Exploitation",
+                "SCENARIO B: Privilege Escalation", 
+                "SCENARIO C: Data Breach"
+            ]
+            for scenario_type in remaining_types:
+                if len(scenario_types) >= 3:
+                    break
+                if not any(scenario_type.split(':')[0] in existing for existing in scenario_types):
+                    scenario_types.append(scenario_type)
+        
+        return scenario_types[:3]
+    
     def clean_llm_response(self, content: str) -> str:
         """Remove unwanted content from LLM responses"""
         import re
@@ -176,11 +236,17 @@ class ReportAgent:
     async def generate_comprehensive_report(self, all_data: Dict[str, Any]) -> str:
         """Generate complete threat modeling report from all collected data"""
         
+        # Determine scenario types based on threat intelligence
+        threats = all_data.get('threats', [])
+        scenario_types = self.determine_scenario_types(threats)
+        
         report_prompt = f"""
         Generate a technical threat modeling report based on the collected data.
         
         THREAT INTELLIGENCE DATA:
         Product: {all_data.get('product_name', 'Unknown')}
+        
+        SCENARIO TYPES TO GENERATE: {scenario_types}
         
         TOP THREATS (Multi-Agent Ranked):
         {json.dumps([{
@@ -224,9 +290,18 @@ class ReportAgent:
            DO NOT include sections 3.1, 3.2, 3.3, 3.5 - focus only on threat modeling content
         
         4. DETAILED THREAT MODELING SCENARIOS (MAX 3)
-           Create exactly 3 comprehensive threat modeling scenarios based on actual threats and recent attack trends:
+           Create exactly 3 different types of comprehensive threat modeling scenarios based on actual threats:
            
-           SCENARIO A: [Specific Attack Chain based on real CVE/threat affecting similar tools]
+           **Determine scenario types based on threat intelligence:**
+           - If CRITICAL/HIGH CVE with remote exploit: **SCENARIO A: Remote Code Execution Attack**
+           - If authentication/access control issues: **SCENARIO B: Privilege Escalation Attack** 
+           - If data exposure/injection vulnerabilities: **SCENARIO C: Data Exfiltration Attack**
+           - If denial of service vulnerabilities: **SCENARIO D: Availability Attack**
+           - If supply chain/dependency issues: **SCENARIO E: Supply Chain Attack**
+           
+           **Generate these specific scenario types based on threat analysis: {scenario_types}**
+           
+           For each scenario type, create a comprehensive attack chain:
            
            **Comprehensive Threat Modeling Analysis:**
            
