@@ -396,8 +396,40 @@ class ThreatModelingWebApp:
         st.session_state.usage_count += 1
         return True
     
+    def check_authentication(self):
+        """Simple password authentication"""
+        if 'authenticated' not in st.session_state:
+            st.session_state.authenticated = False
+        
+        if not st.session_state.authenticated:
+            st.markdown("""
+            <div class="main-header">
+                <h1>🔐 Cybersecurity Threat Assessment</h1>
+                <p>Access Required - Enter Password</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                password = st.text_input("Enter password:", type="password", key="login_password")
+                if st.button("🚀 Login", type="primary", use_container_width=True):
+                    try:
+                        app_password = st.secrets["APP_PASSWORD"]
+                    except:
+                        app_password = os.getenv('APP_PASSWORD', 'demo123')
+                    
+                    if password == app_password:
+                        st.session_state.authenticated = True
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid password")
+            st.stop()
+    
     def main(self):
         """Main Streamlit application"""
+        
+        # Check authentication first
+        self.check_authentication()
         
         # Header
         st.markdown("""
@@ -674,6 +706,7 @@ class ThreatModelingWebApp:
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline';">
                     <style>
                         body {{
                             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -742,10 +775,10 @@ class ThreatModelingWebApp:
                         mermaid.initialize({{
                             startOnLoad: true,
                             theme: 'default',
-                            securityLevel: 'loose',
+                            securityLevel: 'strict',
                             flowchart: {{
                                 useMaxWidth: true,
-                                htmlLabels: true
+                                htmlLabels: false
                             }},
                             themeVariables: {{
                                 background: '#ffffff',
