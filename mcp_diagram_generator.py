@@ -85,7 +85,17 @@ class MCPDiagramGenerator:
 
             # Extract steps with MITRE techniques
             step_pattern = r'Step \d+:([^(]+)\(([^)]+)\)'
-            steps = re.findall(step_pattern, scenario_text)
+            steps = []
+            
+            for match in re.finditer(step_pattern, scenario_text):
+                step_desc = match.group(1).strip()
+                mitre_id = match.group(2).strip()
+                
+                # Extract MITRE ID without HTML tags
+                if '<span class="mitre">' in mitre_id:
+                    mitre_id = re.search(r'T\d{4}', mitre_id).group(0) if re.search(r'T\d{4}', mitre_id) else mitre_id
+                
+                steps.append((step_desc, mitre_id))
 
             if not steps:
                 # Fallback: extract any numbered steps
@@ -150,7 +160,10 @@ class MCPDiagramGenerator:
             color = category_colors.get(category, "#d3d3d3")  # Default to gray if category is unknown
 
             # Add the step node with color
-            mermaid += f"    {step_name}[\"{step_desc} ({mitre_id})\"]:::step{i}\n"
+            # Clean and format the step description and MITRE ID
+            clean_desc = step_desc.replace('"', '').replace("'", '').strip()
+            clean_mitre = mitre_id.strip()
+            mermaid += f"    {step_name}[\"{clean_desc} ({clean_mitre})\"]:::step{i}\n"
             mermaid += f"    classDef step{i} fill:{color},stroke:#000,stroke-width:2px;\n"
 
             # Add a decision node after each step

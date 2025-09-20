@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime
 
 class DailyUsageTracker:
@@ -9,9 +10,16 @@ class DailyUsageTracker:
 
     def _load_usage_data(self):
         try:
-            with open(self.file_path, "r") as file:
-                return json.load(file)
-        except (FileNotFoundError, json.JSONDecodeError):
+            safe_path = os.path.abspath(self.file_path)
+            if not safe_path.endswith('.json'):
+                raise ValueError("Invalid file type")
+            with open(safe_path, "r") as file:
+                data = json.load(file)
+                # Validate data structure
+                if not isinstance(data, dict) or "date" not in data or "count" not in data:
+                    raise ValueError("Invalid data format")
+                return data
+        except (FileNotFoundError, json.JSONDecodeError, ValueError):
             return {"date": None, "count": 0}
 
     def _save_usage_data(self):

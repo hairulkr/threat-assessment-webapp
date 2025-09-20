@@ -13,6 +13,57 @@ import base64
 from io import BytesIO
 import time
 
+# Set security headers
+st.set_page_config(
+    page_title="Threat Modeling System",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Add security headers using custom HTML
+st.markdown("""
+    <meta
+        http-equiv="Content-Security-Policy"
+        content="
+            default-src 'self' 'unsafe-inline' 'unsafe-eval' data: https://cdn.jsdelivr.net;
+            script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
+            style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+            img-src 'self' data: https:;
+            connect-src 'self' https:;
+            frame-ancestors 'self';
+            frame-src 'self';
+            base-uri 'self';
+            form-action 'self';
+        "
+    />
+    <meta
+        http-equiv="Permissions-Policy"
+        content="
+            accelerometer=(),
+            autoplay=(),
+            camera=(),
+            cross-origin-isolated=(),
+            display-capture=(),
+            encrypted-media=(),
+            fullscreen=(),
+            geolocation=(),
+            gyroscope=(),
+            magnetometer=(),
+            microphone=(),
+            midi=(),
+            payment=(),
+            picture-in-picture=(),
+            publickey-credentials-get=(),
+            screen-wake-lock=(),
+            sync-xhr=(),
+            usb=(),
+            web-share=(),
+            xr-spatial-tracking=()
+        "
+    />
+""", unsafe_allow_html=True)
+
 # Ensure the current directory is in the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -380,10 +431,28 @@ class ThreatModelingWebApp:
         return True
     
     def validate_input(self, product_name):
-        """Input validation"""
-        if len(product_name) > 50:
-            st.error("Product name too long (max 50 characters)")
+        """Enhanced input validation"""
+        if not product_name:
+            st.error("Please enter a product name")
             return False
+        
+        # Remove extra whitespace and validate length
+        cleaned_name = " ".join(product_name.split())
+        if len(cleaned_name) < 3:
+            st.error("Product name must be at least 3 characters long")
+            return False
+            
+        # Check for invalid characters
+        invalid_chars = ['<', '>', ';', '|', '&', '$', '#']
+        if any(char in cleaned_name for char in invalid_chars):
+            st.error("Product name contains invalid characters")
+            return False
+            
+        # Limit maximum length
+        if len(cleaned_name) > 100:
+            st.error("Product name is too long (maximum 100 characters)")
+            return False
+            
         return True
     
     def check_daily_limit(self):
@@ -480,19 +549,87 @@ class ThreatModelingWebApp:
             usage_tracker = st.session_state['usage_tracker']
             remaining_tries = usage_tracker.get_remaining_tries()
 
+            # Display remaining tries in the sidebar with enhanced styling
+            usage_tracker = DailyUsageTracker()
+            remaining_tries = usage_tracker.get_remaining_tries()
+            daily_limit = usage_tracker.daily_limit
+            
+            # Calculate percentage for progress bar
+            progress_percentage = (daily_limit - remaining_tries) / daily_limit
+            
+            # Define color based on remaining tries
+            if remaining_tries > daily_limit * 0.7:  # > 70%
+                color = "#28a745"  # Green
+                emoji = "🟢"
+            elif remaining_tries > daily_limit * 0.3:  # 30-70%
+                color = "#ffc107"  # Yellow
+                emoji = "🟡"
+            else:  # < 30%
+                color = "#dc3545"  # Red
+                emoji = "🔴"
+            
             st.sidebar.markdown(f"""
             <div style="
-                background-color: #e3f2fd;
-                padding: 15px;
-                border-radius: 10px;
-                margin-top: 20px;
-                text-align: center;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                background: linear-gradient(135deg, #f6f8fd 0%, #f1f4f9 100%);
+                padding: 20px;
+                border-radius: 15px;
+                margin: 20px 0;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+                border: 1px solid rgba(0, 0, 0, 0.05);
             ">
-                <h4 style="color: #0d47a1; font-weight: bold;">Remaining Assessments</h4>
-                <p style="font-size: 20px; color: #0d47a1; margin: 10px 0;">
-                    {remaining_tries} assessments left for today
-                </p>
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <h4 style="
+                        color: #1a237e;
+                        font-weight: bold;
+                        margin: 0;
+                        font-size: 1.2em;
+                    ">Daily Assessment Quota</h4>
+                </div>
+                
+                <div style="
+                    background-color: rgba(255, 255, 255, 0.8);
+                    padding: 15px;
+                    border-radius: 10px;
+                    text-align: center;
+                    margin: 10px 0;
+                ">
+                    <div style="font-size: 2.5em; margin-bottom: 5px;">{emoji}</div>
+                    <div style="
+                        font-size: 2em;
+                        font-weight: bold;
+                        color: {color};
+                        margin: 5px 0;
+                    ">{remaining_tries}</div>
+                    <div style="
+                        font-size: 0.9em;
+                        color: #666;
+                        margin-top: 5px;
+                    ">Remaining Today</div>
+                </div>
+                
+                <div style="
+                    background-color: #eee;
+                    height: 4px;
+                    border-radius: 2px;
+                    margin: 15px 0 5px 0;
+                ">
+                    <div style="
+                        width: {progress_percentage * 100}%;
+                        background-color: {color};
+                        height: 100%;
+                        border-radius: 2px;
+                        transition: width 0.5s ease-in-out;
+                    "></div>
+                </div>
+                
+                <div style="
+                    text-align: center;
+                    font-size: 0.8em;
+                    color: #666;
+                    margin-top: 5px;
+                ">
+                    {daily_limit - remaining_tries} used / {daily_limit} total
+                </div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -881,7 +1018,16 @@ class ThreatModelingWebApp:
                 # Estimate height: 20px per line + 400px per diagram + base height
                 estimated_height = max(word_count * 2 + diagram_count * 400 + 500, 1000)
                 
-                st.components.v1.html(mermaid_html, height=estimated_height, scrolling=True)
+                # Configure sandbox and CSP for iframe
+                secured_html = f"""
+                    <iframe
+                        srcdoc="{mermaid_html}"
+                        style="width: 100%; height: {estimated_height}px; border: none; border-radius: 10px;"
+                        sandbox="allow-scripts"
+                        loading="lazy"
+                    ></iframe>
+                """
+                st.components.v1.html(secured_html, height=estimated_height + 20, scrolling=False)
             
             # Reset button
             if st.button("🔄 New Assessment"):
