@@ -32,6 +32,8 @@ class MCPDiagramGenerator:
         
         # Find all scenario placeholders
         placeholders = re.findall(r'\[DIAGRAM_PLACEHOLDER_SCENARIO_([A-Z0-9]+)\]', report_content)
+        print("🔍 Full Report Content:")
+        print(report_content)
         print("🔍 Found placeholders:", placeholders)
 
         for scenario_id in placeholders:
