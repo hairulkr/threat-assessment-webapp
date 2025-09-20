@@ -225,6 +225,11 @@ class ThreatModelingWebApp:
         }
         
         try:
+            # Prevent concurrent assessments
+            if st.session_state.get('assessment_running', False):
+                st.error("Assessment already in progress. Please wait.")
+                return None, None
+                
             st.session_state.assessment_running = True
             
             # Step 1: Product Information
@@ -232,7 +237,17 @@ class ThreatModelingWebApp:
             progress_bar.progress(10)
             
             with st.spinner("🔍 Analyzing product information..."):
-                product_info = await agents['product'].gather_info(product_name)
+                try:
+                    product_info = await asyncio.wait_for(
+                        agents['product'].gather_info(product_name), 
+                        timeout=30
+                    )
+                except asyncio.TimeoutError:
+                    st.error("Product analysis timed out. Please try again.")
+                    return None, None
+                except Exception as e:
+                    st.error(f"Product analysis failed: {str(e)}")
+                    return None, None
             
             status_box.success("Product information gathered successfully")
             all_data["product_info"] = product_info
@@ -256,7 +271,17 @@ class ThreatModelingWebApp:
                 - 🏢 **Microsoft Security** - Vendor-specific advisories...
                 """)
             
-            threats = await agents['threat'].fetch_recent_threats(product_info)
+            try:
+                threats = await asyncio.wait_for(
+                    agents['threat'].fetch_recent_threats(product_info),
+                    timeout=60
+                )
+            except asyncio.TimeoutError:
+                st.error("Threat intelligence gathering timed out. Please try again.")
+                return None, None
+            except Exception as e:
+                st.error(f"Threat intelligence failed: {str(e)}")
+                return None, None
             
             # Clear status and show results
             source_status.empty()
@@ -276,9 +301,19 @@ class ThreatModelingWebApp:
             web_status = st.empty()
             web_status.info("🌐 **Web Intelligence Sources:** Analyzing recent attack trends and similar tool compromises...")
             
-            context_task = agents['context'].enrich_threat_report(product_name, threats)
-            risk_task = agents['risk'].analyze_risks(product_info, threats)
-            threat_context, risks = await asyncio.gather(context_task, risk_task)
+            try:
+                context_task = agents['context'].enrich_threat_report(product_name, threats)
+                risk_task = agents['risk'].analyze_risks(product_info, threats)
+                threat_context, risks = await asyncio.wait_for(
+                    asyncio.gather(context_task, risk_task),
+                    timeout=45
+                )
+            except asyncio.TimeoutError:
+                st.error("Context analysis timed out. Please try again.")
+                return None, None
+            except Exception as e:
+                st.error(f"Context analysis failed: {str(e)}")
+                return None, None
             
             web_status.empty()
             status_box.success("✅ **Context Analysis Complete:** Attack trends and risk assessment finished")
@@ -291,7 +326,17 @@ class ThreatModelingWebApp:
             status_text.markdown("**🛡️ Step 4: Generating control recommendations...**")
             
             with st.spinner("🛡️ Generating security control recommendations..."):
-                controls = await agents['controls'].propose_controls(risks)
+                try:
+                    controls = await asyncio.wait_for(
+                        agents['controls'].propose_controls(risks),
+                        timeout=30
+                    )
+                except asyncio.TimeoutError:
+                    st.error("Control generation timed out. Please try again.")
+                    return None, None
+                except Exception as e:
+                    st.error(f"Control generation failed: {str(e)}")
+                    return None, None
             
             status_box.success("Security control framework established")
             all_data["controls"] = controls
@@ -302,9 +347,19 @@ class ThreatModelingWebApp:
             status_text.markdown("**📊 Step 5: Finalizing report generation...**")
             
             with st.spinner("📊 Conducting expert review and generating report..."):
-                review_task = agents['reviewer'].conduct_comprehensive_review(all_data)
-                report_task = agents['report'].generate_comprehensive_report(all_data)
-                review_results, report_content = await asyncio.gather(review_task, report_task)
+                try:
+                    review_task = agents['reviewer'].conduct_comprehensive_review(all_data)
+                    report_task = agents['report'].generate_comprehensive_report(all_data)
+                    review_results, report_content = await asyncio.wait_for(
+                        asyncio.gather(review_task, report_task),
+                        timeout=60
+                    )
+                except asyncio.TimeoutError:
+                    st.error("Report generation timed out. Please try again.")
+                    return None, None
+                except Exception as e:
+                    st.error(f"Report generation failed: {str(e)}")
+                    return None, None
             
             status_box.success("Expert review and report generation completed")
             
@@ -328,7 +383,13 @@ class ThreatModelingWebApp:
         except Exception as e:
             st.session_state.assessment_running = False
             st.error(f"❌ Error during assessment: {str(e)}")
+            # Log the full error for debugging
+            import traceback
+            print(f"Assessment error details: {traceback.format_exc()}")
             return None, None
+        finally:
+            # Ensure assessment_running is always reset
+            st.session_state.assessment_running = False
     
     def display_threat_summary(self, all_data):
         """Display threat summary cards"""
@@ -598,8 +659,8 @@ class ThreatModelingWebApp:
             
             steps = [
                 "🔍 Product Analysis",
-                "🎯 Recent Threat Intelligence", 
-                "🌐 Attack Trend Analysis",
+                "🎯 Multi-Agent Threat Intelligence", 
+                "🌐 Accuracy Enhancement Analysis",
                 "🛡️ Control Recommendations",
                 "📊 Threat Modeling Report"
             ]
@@ -807,7 +868,10 @@ class ThreatModelingWebApp:
                     st.error("🚫 Daily limit reached (10 assessments). Try again tomorrow.")
                     st.stop()
                 
-                # Set running state and rerun to show disabled button
+                # Reset assessment state before starting new one
+                st.session_state.assessment_complete = False
+                st.session_state.report_content = None
+                st.session_state.all_data = None
                 st.session_state.assessment_running = True
                 st.session_state.product_name = product_name
                 st.rerun()
@@ -822,7 +886,10 @@ class ThreatModelingWebApp:
                     st.error("🚫 Daily limit reached (10 assessments). Try again tomorrow.")
                     st.stop()
                 
-                # Set running state and rerun to show disabled button
+                # Reset assessment state before starting new one
+                st.session_state.assessment_complete = False
+                st.session_state.report_content = None
+                st.session_state.all_data = None
                 st.session_state.assessment_running = True
                 st.session_state.product_name = "Visual Studio Code"
                 st.rerun()
@@ -831,25 +898,24 @@ class ThreatModelingWebApp:
             st.header("ℹ️ About")
             with st.container(border=True):
                 st.markdown("""
-                **🎯 Recent Attack Focus:** Prioritizes latest available attack patterns and current threat actor campaigns
+                **🎯 Latest Attack Intelligence:** Prioritizes most current attack patterns and threat actor campaigns from latest available sources
                 
-                **📊 17 Intelligence Sources:** NVD CVE, GitHub Security, CISA Alerts, Google CSE (12 databases), Microsoft Security
+                **📊 17-Source Intelligence:** NVD CVE, GitHub Security, CISA Alerts, Google CSE (12 databases), Microsoft Security with authority weighting
                 
-                **🤖 Multi-Agent Ranking:** 4 specialized agents (CVE, Exploit, Authority, Relevance) with ensemble scoring
+                **🤖 Multi-Agent System:** 4 specialized ranking agents with ensemble scoring + ThreatAccuracyEnhancer for analyst-focused intelligence
                 
-                **🔍 Threat Modeling Approach:**
-                - **Recent Breach Analysis:** Similar tool compromises and attack trends
-                - **7-Phase Attack Scenarios:** Detailed threat modeling with real-world examples
-                - **Current TTPs:** Latest tactics from active threat actor campaigns
-                - **Exploit Intelligence:** Public exploit availability and weaponization status
+                **🔍 Scenario-Specific Modeling:**
+                - **Dynamic Scenario Types:** Remote Code Execution, Privilege Escalation, Data Exfiltration, Availability, Supply Chain attacks
+                - **Threat-Matched Attack Flows:** Each scenario gets unique attack flow diagrams based on actual threat intelligence
+                - **CVE-Based Analysis:** Reconnaissance → Initial Access → Execution → Persistence → Privilege Escalation → Defense Evasion → Impact
                 
-                **🏆 Enhanced Accuracy:**
-                - **Recency Priority:** 2024 attacks and current campaigns first
-                - **Authority Weighting:** Official (3x), Verified (2x), Community (1x)
-                - **Analyst Focus:** Exploit availability, patch status, attack complexity
-                - **Business Impact:** Risk assessment with detection difficulty analysis
+                **🏆 Enhanced Intelligence:**
+                - **Multi-Agent Ranking:** CVE Agent (CVSS + recency), Exploit Agent (weaponization status), Authority Agent (source credibility), Relevance Agent (product matching)
+                - **Ensemble Scoring:** Authority weight × Recency factor × CVSS normalized × Relevance score
+                - **Priority Algorithm:** Official sources (3x weight) → Verified sources (2x) → Community (1x) with exploit availability boost
+                - **Accuracy Enhancement:** ThreatAccuracyEnhancer filters by exploit availability, patch status, attack complexity, detection difficulty
                 
-                **📈 Confidence Scoring:** Ensemble ranking with exploit availability and recent attack correlation
+                **📈 Intelligent Processing:** Multi-agent ranking with threat-specific attack flows and scenario differentiation based on actual CVE findings
                 """)
             
             if st.session_state.assessment_complete:
@@ -873,7 +939,15 @@ class ThreatModelingWebApp:
             usage_tracker = st.session_state.usage_tracker
             
             try:
-                report_content, all_data = asyncio.run(self.run_assessment(product_name))
+                # Use asyncio.run with timeout wrapper
+                async def run_with_timeout():
+                    return await asyncio.wait_for(
+                        self.run_assessment(product_name),
+                        timeout=300  # 5 minute total timeout
+                    )
+                
+                report_content, all_data = asyncio.run(run_with_timeout())
+                
                 if report_content and all_data:
                     # Increment usage after successful assessment
                     usage_tracker.increment_usage()
@@ -885,9 +959,14 @@ class ThreatModelingWebApp:
                     # Assessment failed or was terminated
                     st.session_state.assessment_running = False
                     st.error("Assessment failed or was terminated. Please try again.")
+            except asyncio.TimeoutError:
+                st.session_state.assessment_running = False
+                st.error("Assessment timed out after 5 minutes. Please try again with a different product.")
             except Exception as e:
                 st.session_state.assessment_running = False
                 st.error(f"Assessment error: {str(e)}")
+                import traceback
+                print(f"Full error trace: {traceback.format_exc()}")
             
             # Only rerun if assessment completed successfully
             if st.session_state.get('assessment_complete'):

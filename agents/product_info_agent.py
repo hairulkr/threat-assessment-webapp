@@ -50,47 +50,9 @@ class ProductInfoAgent:
             print(f"CPE search error: {e}")
             return []
     
-    async def get_product_suggestions(self, user_input: str) -> List[Dict[str, Any]]:
-        """Get comprehensive product suggestions from multiple sources"""
-        suggestions = []
-        
-        # 1. Get CPE database matches (most accurate)
-        cpe_products = await self.search_cpe_products(user_input)
-        for product in cpe_products:
-            suggestions.append({
-                'name': product['name'],
-                'source': 'NVD CPE Database',
-                'confidence': 'High',
-                'cpe': product.get('cpe', '')
-            })
-        
-        # 2. Get LLM smart completions (broader coverage)
-        llm_suggestions = await self.smart_product_completion(user_input)
-        for suggestion in llm_suggestions:
-            # Avoid duplicates
-            if not any(s['name'].lower() == suggestion.lower() for s in suggestions):
-                suggestions.append({
-                    'name': suggestion,
-                    'source': 'AI Completion',
-                    'confidence': 'Medium'
-                })
-        
-        # 3. Test CVE availability for top suggestions
-        for suggestion in suggestions[:5]:
-            cve_test = await self.test_cve_availability(suggestion['name'])
-            suggestion['has_cves'] = cve_test.get('has_cves', False)
-            suggestion['cve_count'] = cve_test.get('total_cves', 0)
-            if suggestion['has_cves']:
-                suggestion['confidence'] = 'High'
-        
-        # Sort by confidence and CVE availability
-        suggestions.sort(key=lambda x: (
-            x.get('has_cves', False),
-            x.get('cve_count', 0),
-            x['confidence'] == 'High'
-        ), reverse=True)
-        
-        return suggestions[:8]
+    async def get_product_suggestions(self, user_input: str) -> List[str]:
+        """Get product suggestions using LLM - more flexible than CPE database"""
+        return await self.smart_product_completion(user_input)
     
     async def test_cve_availability(self, product_name: str) -> Dict[str, Any]:
         """Test if product has CVEs available"""
@@ -121,43 +83,45 @@ class ProductInfoAgent:
             }
     
     async def smart_product_completion(self, user_input: str) -> List[str]:
-        """Enhanced smart product completion using LLM with latest software knowledge"""
+        """Smart product completion using LLM"""
         if len(user_input) < 2:
             return []
         
         prompt = f"""
         User input: "{user_input}"
         
-        Complete this with current, widely-used software products that are actively maintained and commonly deployed. Focus on latest versions and popular solutions with known security vulnerabilities.
+        Complete this with the LATEST and MOST CURRENT software products available on the internet as of 2024. Focus on newest releases, latest versions, and cutting-edge technologies.
         Return JSON array (1 result if exact, multiple if incomplete):
         ["product1", "product2", ...]
         
-        Examples:
-        - "visual" -> ["Visual Studio Code", "Visual Studio 2022", "Visual Studio Community"]
-        - "apache" -> ["Apache Tomcat", "Apache HTTP Server", "Apache Kafka", "Apache Struts"]
-        - "docker" -> ["Docker Desktop", "Docker Engine", "Docker Compose"]
-        - "node" -> ["Node.js", "NodeJS", "Node.js Runtime"]
-        - "python" -> ["Python", "Python 3.x", "CPython"]
-        - "react" -> ["React", "React Native", "ReactJS"]
-        - "spring" -> ["Spring Framework", "Spring Boot", "Spring Security"]
-        - "jenkins" -> ["Jenkins", "Jenkins CI/CD", "Jenkins Server"]
-        - "wordpress" -> ["WordPress", "WordPress CMS", "WordPress Core"]
-        - "mysql" -> ["MySQL", "MySQL Server", "MySQL Database"]
+        Examples with LATEST versions:
+        - "visual" -> ["Visual Studio Code 2024", "Visual Studio 2022 17.8", "Visual Studio Community 2022"]
+        - "apache" -> ["Apache Tomcat 10.1", "Apache HTTP Server 2.4.58", "Apache Kafka 3.6"]
+        - "docker" -> ["Docker Desktop 4.25", "Docker Engine 24.0", "Docker Compose v2"]
+        - "node" -> ["Node.js 21.x", "Node.js 20 LTS", "Node.js Latest"]
+        - "python" -> ["Python 3.12", "Python 3.11", "Python Latest"]
+        - "react" -> ["React 18.2", "React Native 0.73", "Next.js 14"]
+        - "spring" -> ["Spring Boot 3.2", "Spring Framework 6.1", "Spring Security 6.2"]
+        - "kubernetes" -> ["Kubernetes 1.29", "K8s Latest", "OpenShift 4.14"]
+        - "terraform" -> ["Terraform 1.6", "Terraform Latest", "HashiCorp Terraform"]
+        - "mongodb" -> ["MongoDB 7.0", "MongoDB Atlas", "MongoDB Community"]
         
-        Prioritize products that:
-        - Have known CVEs and security issues
-        - Are widely deployed in enterprise environments
-        - Are popular development tools and frameworks
-        - Are common server and infrastructure software
-        - Have active security research and vulnerability disclosure
+        Focus on:
+        - Latest stable releases and versions from 2024
+        - Newest cloud-native and modern technologies
+        - Current enterprise software and tools
+        - Latest development frameworks and platforms
+        - Most recent security tools and infrastructure
+        - Cutting-edge AI/ML platforms and tools
+        - Modern containerization and orchestration tools
         """
         
         try:
-            response = await self.llm.generate(prompt, max_tokens=300)
+            response = await self.llm.generate(prompt, max_tokens=200)
             json_match = re.search(r'\[.*?\]', response, re.DOTALL)
             if json_match:
                 results = json.loads(json_match.group())
-                return results[:6] if isinstance(results, list) else []
+                return results[:5] if isinstance(results, list) else []
         except Exception as e:
             print(f"LLM completion error: {e}")
         
