@@ -129,14 +129,25 @@ class MCPDiagramGenerator:
         # Clean product name for Mermaid
         clean_product = product_name.replace('"', '').replace("'", '').replace('\n', ' ')[:30]
 
-        mermaid = f"graph LR\n    Start[\"Target: {clean_product}\"] --> Step1\n"
+        # Add a decision node for each step to make the diagram more informative
+        mermaid = f"graph TD\n    Start[\"Target: {clean_product}\"] --> Step1\n"
 
-        # Generate nodes for each step
         for i, (step_desc, mitre_id) in enumerate(steps, 1):
             step_name = f"Step{i}"
+            decision_name = f"Decision{i}"
+
+            # Add the step node
             mermaid += f"    {step_name}[\"{step_desc} ({mitre_id})\"]\n"
-            if i < len(steps):
-                mermaid += f"    {step_name} --> Step{i+1}\n"
+
+            # Add a decision node after each step
+            mermaid += f"    {step_name} --> {decision_name}{{\"Mitigation Decision\"}}\n"
+
+            # Add paths for the decision node
+            mermaid += f"    {decision_name} -->|Mitigated| Step{i+1 if i < len(steps) else 'End'}\n"
+            mermaid += f"    {decision_name} -->|Not Mitigated| Step{i+1 if i < len(steps) else 'End'}\n"
+
+        # Add an end node
+        mermaid += "    End[\"Attack Flow Complete\"]\n"
 
         return mermaid
     
