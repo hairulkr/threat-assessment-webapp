@@ -553,34 +553,17 @@ class ThreatModelingWebApp:
             usage_tracker = DailyUsageTracker()
             remaining_tries = usage_tracker.get_remaining_tries()
             
-            st.sidebar.markdown("""
+            st.sidebar.markdown("### 🔒 Daily Assessment Quota")
+            st.sidebar.markdown(f"""
             <div style="
-                background-color: #f8f9fa;
-                border-radius: 8px;
+                background-color: #ffe1e9;
+                border-radius: 4px;
+                border: 1px solid #ffb1c7;
+                color: #9b2542;
                 padding: 16px;
-                margin: 20px 0;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                margin-top: 8px;
             ">
-                <div style="
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    margin-bottom: 8px;
-                ">
-                    <span style="
-                        color: #1a237e;
-                        font-size: 0.9em;
-                        font-weight: 500;
-                    ">Daily Quota</span>
-                    <span style="
-                        background-color: #e3f2fd;
-                        color: #1a237e;
-                        padding: 4px 12px;
-                        border-radius: 12px;
-                        font-size: 0.9em;
-                        font-weight: 600;
-                    ">{remaining_tries} left</span>
-                </div>
+                <div>� {remaining_tries} assessments remaining</div>
             </div>
             """, unsafe_allow_html=True)
         
