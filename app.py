@@ -715,32 +715,50 @@ class ThreatModelingWebApp:
                     **Tip**: Try searching at [NVD CPE Search](https://nvd.nist.gov/products/cpe/search) for exact product names.
                     """)
             
-            # Assessment form - always show
-            with st.form("assessment_form"):
-                # Use selected product or user input
-                final_product = st.session_state.get('selected_product', product_input)
-                
-                # Clear selected product after using it
-                if 'selected_product' in st.session_state:
-                    del st.session_state['selected_product']
-                
-                col_a, col_b = st.columns([4, 1])
-                with col_a:
-                    submit_button = st.form_submit_button(
-                        "🚀 Start Assessment", 
-                        type="primary",
-                        disabled=st.session_state.get('assessment_running', False) or not final_product
+            # Assessment form
+            if product_input or st.session_state.get('selected_product'):
+                with st.form("assessment_form"):
+                    # Use selected product or user input
+                    final_product = st.session_state.get('selected_product', product_input)
+                    
+                    # Show the product name that will be assessed
+                    st.text_input(
+                        "Product to assess:",
+                        value=final_product,
+                        disabled=True,
+                        help="This is the product that will be assessed"
                     )
-                with col_b:
+                    
+                    col_a, col_b = st.columns([4, 1])
+                    with col_a:
+                        submit_button = st.form_submit_button(
+                            "🚀 Start Assessment", 
+                            type="primary",
+                            disabled=st.session_state.get('assessment_running', False)
+                        )
+                    with col_b:
+                        example_button = st.form_submit_button(
+                            "📝 Try Example",
+                            disabled=st.session_state.get('assessment_running', False)
+                        )
+                    
+                    product_name = final_product
+            else:
+                # Show example button when no input
+                with st.form("example_form"):
+                    st.info("Enter a product name above or try an example")
+                    submit_button = False
                     example_button = st.form_submit_button(
-                        "📝 Try Example",
+                        "📝 Try Example: Visual Studio Code",
                         disabled=st.session_state.get('assessment_running', False)
                     )
-                
-                product_name = final_product
+                    product_name = None
             
             # Handle form submission
             if submit_button and product_name:
+                # Clear selected product after using it
+                if 'selected_product' in st.session_state:
+                    del st.session_state['selected_product']
                 if not self.check_rate_limit():
                     st.stop()
                 if not self.validate_input(product_name):
