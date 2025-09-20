@@ -668,8 +668,8 @@ class ThreatModelingWebApp:
                 with open(methodology_path, 'r', encoding='utf-8') as f:
                     methodology_content = f.read()
                 
-                # Display methodology with maximum height and no scrolling
-                st.components.v1.html(methodology_content, height=9000, scrolling=False)
+                # Display methodology with dynamic height and scrolling enabled
+                st.components.v1.html(methodology_content, height=1200, scrolling=True)
             else:
                 st.error("Methodology file not found")
             
@@ -1050,17 +1050,19 @@ class ThreatModelingWebApp:
             
             # Reset button
             if st.button("🔄 New Assessment"):
-                # Reset session state
-                st.session_state.assessment_complete = False
-                st.session_state.assessment_running = False
-                st.session_state.report_content = None
-                st.session_state.all_data = None
-                st.session_state.product_name = ""
+                # Reset all assessment-related session state
+                keys_to_reset = [
+                    'assessment_complete', 'assessment_running', 'report_content', 
+                    'all_data', 'product_name', 'suggestions', 'selected_product', 
+                    'last_search', 'product_search'
+                ]
                 
-                # Clear search-related state
-                for key in ['suggestions', 'selected_product', 'last_search']:
+                for key in keys_to_reset:
                     if key in st.session_state:
                         del st.session_state[key]
+                
+                # Reset form state by clearing the text input
+                st.session_state.product_search = ""
                 
                 st.rerun()
 
