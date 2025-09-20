@@ -225,11 +225,6 @@ class ThreatModelingWebApp:
         }
         
         try:
-            # Prevent concurrent assessments
-            if st.session_state.get('assessment_running', False):
-                st.error("Assessment already in progress. Please wait.")
-                return None, None
-                
             st.session_state.assessment_running = True
             
             # Step 1: Product Information
@@ -854,6 +849,11 @@ class ThreatModelingWebApp:
             
             # Handle form submission
             if submit_button and product_name:
+                # Prevent concurrent assessments
+                if st.session_state.get('assessment_running', False):
+                    st.warning("⏳ Assessment already in progress. Please wait for it to complete.")
+                    st.stop()
+                    
                 # Clear selected product after using it
                 if 'selected_product' in st.session_state:
                     del st.session_state['selected_product']
@@ -877,6 +877,11 @@ class ThreatModelingWebApp:
                 st.rerun()
             
             elif example_button:
+                # Prevent concurrent assessments
+                if st.session_state.get('assessment_running', False):
+                    st.warning("⏳ Assessment already in progress. Please wait for it to complete.")
+                    st.stop()
+                    
                 if not self.check_rate_limit():
                     st.stop()
                 
