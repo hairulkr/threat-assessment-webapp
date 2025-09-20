@@ -129,15 +129,39 @@ class MCPDiagramGenerator:
         # Clean product name for Mermaid
         clean_product = product_name.replace('"', '').replace("'", '').replace('\n', ' ')[:30]
 
-        # Add a decision node for each step to make the diagram more informative
+        # Define color codes for different MITRE categories
+        category_colors = {
+            "Initial Access": "#ff9999",
+            "Execution": "#ffcc99",
+            "Persistence": "#ffff99",
+            "Privilege Escalation": "#ccff99",
+            "Defense Evasion": "#99ff99",
+            "Credential Access": "#99ffcc",
+            "Discovery": "#99ccff",
+            "Lateral Movement": "#9999ff",
+            "Collection": "#cc99ff",
+            "Exfiltration": "#ff99cc",
+            "Impact": "#ff6699"
+        }
+
         mermaid = f"graph TD\n    Start[\"Target: {clean_product}\"] --> Step1\n"
 
         for i, (step_desc, mitre_id) in enumerate(steps, 1):
             step_name = f"Step{i}"
             decision_name = f"Decision{i}"
 
-            # Add the step node
-            mermaid += f"    {step_name}[\"{step_desc} ({mitre_id})\"]\n"
+            # Determine the category color
+            category = "Unknown"
+            for cat in category_colors:
+                if cat in step_desc:
+                    category = cat
+                    break
+
+            color = category_colors.get(category, "#d3d3d3")  # Default to gray if category is unknown
+
+            # Add the step node with color
+            mermaid += f"    {step_name}[\"{step_desc} ({mitre_id})\"]:::step{i}\n"
+            mermaid += f"    classDef step{i} fill:{color},stroke:#000,stroke-width:2px;\n"
 
             # Add a decision node after each step
             mermaid += f"    {step_name} --> {decision_name}{{\"Mitigation Decision\"}}\n"
