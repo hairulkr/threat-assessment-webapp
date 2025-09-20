@@ -213,28 +213,79 @@ class ReportAgent:
            - Attack surface
            - Dependencies
         
-        3. COMPREHENSIVE THREAT ANALYSIS
-           - Detailed CVE analysis with CVSS scores, exploit availability, and patch status
-           - Active threat actor campaigns targeting similar products
-           - Exploit code availability and weaponization timeline
-           - Attack surface analysis based on identified components
-           - Threat intelligence correlation across multiple sources
-           - Zero-day potential and emerging threat patterns
+        3. THREAT MODELING & ATTACK ANALYSIS
+           Focus on detailed threat modeling methodology with:
+           - **Recent Attack Trends:** Latest available attack patterns targeting similar tools and technologies
+           - **Similar Tool Compromises:** Analysis of recent breaches in comparable software/platforms with specific examples
+           - **Attack Surface Analysis:** Component-level risk assessment based on product architecture
+           - **CVE Analysis:** Detailed vulnerability analysis with CVSS scores and exploit availability
+           - **Threat Actor TTPs:** Tactics, techniques, and procedures used against this technology stack
+           
+           DO NOT include sections 3.1, 3.2, 3.3, 3.5 - focus only on threat modeling content
         
-        4. ATTACK SCENARIOS (MAX 3)
-           Create exactly 3 detailed attack scenarios based on the highest-ranked threats:
+        4. DETAILED THREAT MODELING SCENARIOS (MAX 3)
+           Create exactly 3 comprehensive threat modeling scenarios based on actual threats and recent attack trends:
            
-           SCENARIO A: [Specific Attack Type based on actual CVE/threat]
-           Step 1: [Initial Access Method] (MITRE T####) - Include specific tools, techniques, and indicators
-           Step 2: [Execution/Persistence] (MITRE T####) - Detail the attack progression and technical methods
-           Step 3: [Privilege Escalation/Lateral Movement] (MITRE T####) - Explain how attackers expand access
-           Step 4: [Data Exfiltration/Impact] (MITRE T####) - Describe the final objectives and business impact
+           SCENARIO A: [Specific Attack Chain based on real CVE/threat affecting similar tools]
            
-           For each step include:
-           - Specific technical details relevant to the identified threats
-           - Actual tools and techniques used by threat actors
-           - Detection methods and indicators of compromise (IOCs)
-           - Realistic timeline and difficulty assessment
+           **Comprehensive Threat Modeling Analysis:**
+           
+           **Phase 1: Reconnaissance & Target Identification** (MITRE T1595)
+           - Latest reconnaissance campaigns targeting similar tools and platforms
+           - Product-specific reconnaissance techniques observed in most recent attacks
+           - Attack surface enumeration methods from latest available breach reports
+           - Information gathering tactics used in current threat actor campaigns
+           - Timeline: 1-7 days | Difficulty: Low | Detection: Medium
+           
+           **Phase 2: Initial Access & Exploitation** (MITRE T1190/T1566)
+           - **Latest Attack Patterns:** Most recent exploitation techniques targeting this technology stack
+           - **Current CVE Exploitation:** Vulnerabilities being actively exploited based on latest intelligence
+           - **Threat Actor Tools:** Exploit kits and payloads from most recent campaigns against similar platforms
+           - **Entry Point Analysis:** Attack vectors observed in latest available breaches of comparable software
+           - Timeline: 15 minutes - 2 hours | Difficulty: Medium | Detection: High
+           
+           **Phase 3: Execution & Persistence** (MITRE T1059/T1053)
+           - **Latest Execution Techniques:** Code execution methods from most recent attacks
+           - **Current Persistence Tactics:** Mechanisms observed in latest campaigns against similar tools
+           - **Modern Evasion Methods:** Anti-detection techniques from most recent threat actor playbooks
+           - **Living-off-the-Land:** Latest available LOLBAS techniques targeting this technology stack
+           - Timeline: 5-30 minutes | Difficulty: Medium | Detection: Medium
+           
+           **Phase 4: Privilege Escalation** (MITRE T1068/T1055)
+           - Escalation paths specific to the product architecture and deployment model
+           - Local privilege escalation techniques relevant to this technology stack
+           - Container/service account abuse patterns seen in similar tool compromises
+           - Recent privilege escalation techniques used against comparable platforms
+           - Timeline: 10 minutes - 2 hours | Difficulty: High | Detection: Medium
+           
+           **Phase 5: Defense Evasion & Lateral Movement** (MITRE T1070/T1021)
+           - Log evasion and artifact cleanup specific to this product type
+           - Network propagation techniques leveraging product-specific protocols
+           - Credential harvesting methods targeting this technology environment
+           - Lateral movement patterns observed in recent attacks on similar tools
+           - Timeline: 2-24 hours | Difficulty: High | Detection: Low
+           
+           **Phase 6: Data Discovery & Collection** (MITRE T1083/T1005)
+           - Data location and classification methods for this product type
+           - Sensitive information extraction techniques specific to this technology
+           - Database and file system access patterns relevant to this platform
+           - Recent data collection techniques used against similar tools
+           - Timeline: 1-48 hours | Difficulty: Medium | Detection: Medium
+           
+           **Phase 7: Exfiltration & Impact** (MITRE T1041/T1486)
+           - Data exfiltration channels and methods used in recent attacks
+           - Business impact assessment based on similar tool compromises
+           - Potential for ransomware or destruction based on recent threat actor behavior
+           - Real-world impact examples from latest available attacks on comparable platforms
+           - Timeline: 30 minutes - 4 hours | Difficulty: Medium | Detection: High
+           
+           **For each phase include:**
+           - Specific technical implementation details and commands
+           - Tools and techniques used in recent real-world attacks
+           - Detection signatures, IOCs, and monitoring recommendations
+           - Mitigation strategies and security controls
+           - References to actual attacks on similar tools from latest available intelligence
+           - Risk assessment and business impact analysis
            
            End each scenario with: [DIAGRAM_PLACEHOLDER_SCENARIO_X]
         
@@ -267,7 +318,7 @@ class ReportAgent:
         - Use <span class="mitre"> for MITRE technique references
         """
         
-        report_content = await self.llm.generate(report_prompt, max_tokens=2500)
+        report_content = await self.llm.generate(report_prompt, max_tokens=4000)
         
         # Clean up LLM response - remove unwanted content
         report_content = self.clean_llm_response(report_content)

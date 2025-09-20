@@ -241,22 +241,47 @@ class ThreatModelingWebApp:
             status_text.markdown("**🎯 Step 2: Fetching threat intelligence...**")
             progress_bar.progress(25)
             
-            with st.spinner("🎯 Fetching threat intelligence from databases..."):
-                threats = await agents['threat'].fetch_recent_threats(product_info)
+            # Show detailed status during threat intelligence gathering
+            status_container = st.container()
+            with status_container:
+                st.info("🔍 **Gathering from 17 threat intelligence sources:**")
+                source_status = st.empty()
+                
+                # Update status during processing
+                source_status.markdown("""
+                - 🏢 **NVD CVE Database** - Searching official vulnerabilities...
+                - 🐙 **GitHub Security Advisories** - Checking recent advisories...
+                - 🏛️ **CISA Alerts** - Scanning government alerts...
+                - 🔍 **Google CSE (12 sources)** - Comprehensive search across security databases...
+                - 🏢 **Microsoft Security** - Vendor-specific advisories...
+                """)
             
-            status_box.success(f"Found {len(threats)} threats")
+            threats = await agents['threat'].fetch_recent_threats(product_info)
+            
+            # Clear status and show results
+            source_status.empty()
+            status_box.success(f"✅ **Threat Intelligence Complete:** {len(threats)} threats found from multiple sources")
+            
+            # Show source breakdown
+            if threats:
+                sources_found = list(set(t.get('source', 'Unknown') for t in threats))
+                st.info(f"📊 **Sources:** {', '.join(sources_found[:5])}{'...' if len(sources_found) > 5 else ''}")
             all_data["threats"] = threats
             
             # Step 3: Threat Context & Risk Analysis
             status_text.markdown("**🌐 Step 3: Enriching with web intelligence...**")
             progress_bar.progress(40)
             
-            with st.spinner("🌐 Enriching with web intelligence and analyzing risks..."):
-                context_task = agents['context'].enrich_threat_report(product_name, threats)
-                risk_task = agents['risk'].analyze_risks(product_info, threats)
-                threat_context, risks = await asyncio.gather(context_task, risk_task)
+            # Show detailed web intelligence status
+            web_status = st.empty()
+            web_status.info("🌐 **Web Intelligence Sources:** Analyzing recent attack trends and similar tool compromises...")
             
-            status_box.success("Web intelligence and risk analysis completed")
+            context_task = agents['context'].enrich_threat_report(product_name, threats)
+            risk_task = agents['risk'].analyze_risks(product_info, threats)
+            threat_context, risks = await asyncio.gather(context_task, risk_task)
+            
+            web_status.empty()
+            status_box.success("✅ **Context Analysis Complete:** Attack trends and risk assessment finished")
             all_data["threat_context"] = threat_context
             all_data["risks"] = risks
             
@@ -542,10 +567,8 @@ class ThreatModelingWebApp:
         # Check authentication first
         self.check_authentication()
         
-        # Header - change color if threats found
+        # Header - keep consistent color
         header_class = "main-header"
-        if st.session_state.assessment_complete and st.session_state.all_data and st.session_state.all_data.get('threats'):
-            header_class += " threats-found"
         
         st.markdown(f"""
         <div class="{header_class}">
@@ -575,10 +598,10 @@ class ThreatModelingWebApp:
             
             steps = [
                 "🔍 Product Analysis",
-                "🎯 Threat Intelligence", 
-                "🌐 Web Intelligence",
+                "🎯 Recent Threat Intelligence", 
+                "🌐 Attack Trend Analysis",
                 "🛡️ Control Recommendations",
-                "📊 Report Generation"
+                "📊 Threat Modeling Report"
             ]
             
             for i, step in enumerate(steps, 1):
@@ -808,25 +831,25 @@ class ThreatModelingWebApp:
             st.header("ℹ️ About")
             with st.container(border=True):
                 st.markdown("""
-                **📊 Official Sources:** NVD CVE Database, CISA Alerts, Microsoft Security Response, Google Security Blog
+                **🎯 Recent Attack Focus:** Prioritizes latest available attack patterns and current threat actor campaigns
                 
-                **👥 Community Sources:** GitHub Security Advisories, Exploit Database, Packet Storm Security
+                **📊 17 Intelligence Sources:** NVD CVE, GitHub Security, CISA Alerts, Google CSE (12 databases), Microsoft Security
                 
-                **🔍 Intelligence Sources:** MITRE ATT&CK Updates, AlienVault OTX, Shodan Internet Exposure
+                **🤖 Multi-Agent Ranking:** 4 specialized agents (CVE, Exploit, Authority, Relevance) with ensemble scoring
                 
-                **📡 Security Feeds:** Krebs on Security, Schneier on Security, Threatpost, CISA Cybersecurity Advisories
+                **🔍 Threat Modeling Approach:**
+                - **Recent Breach Analysis:** Similar tool compromises and attack trends
+                - **7-Phase Attack Scenarios:** Detailed threat modeling with real-world examples
+                - **Current TTPs:** Latest tactics from active threat actor campaigns
+                - **Exploit Intelligence:** Public exploit availability and weaponization status
                 
-                **🤖 AI Analysis:** Risk assessment with CVSS scoring, MITRE ATT&CK mapping, security controls recommendation
-                
-                **🏆 Ranking Algorithm:**
-                - **Recency Factor:** Most recent threats prioritized first
+                **🏆 Enhanced Accuracy:**
+                - **Recency Priority:** 2024 attacks and current campaigns first
                 - **Authority Weighting:** Official (3x), Verified (2x), Community (1x)
-                - **Relevance Scoring:** Product name match (+0.5), tech stack (+0.3), 0.4+ threshold
-                - **Severity Impact:** CVSS scores and known exploits weighted higher
+                - **Analyst Focus:** Exploit availability, patch status, attack complexity
+                - **Business Impact:** Risk assessment with detection difficulty analysis
                 
-                **🧮 Formula:** `Final Score = (Recency × Authority × Relevance × Severity)`
-                
-                **📊 Confidence Levels:** HIGH (7.0+), MEDIUM (4.0-6.9), LOW (<4.0)
+                **📈 Confidence Scoring:** Ensemble ranking with exploit availability and recent attack correlation
                 """)
             
             if st.session_state.assessment_complete:
