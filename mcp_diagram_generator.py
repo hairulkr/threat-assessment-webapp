@@ -103,59 +103,65 @@ class MCPDiagramGenerator:
         return report_content
     
     async def generate_scenario_diagram(self, scenario_text: str, scenario_id: str, threats: List[Dict[str, Any]], product_name: str) -> str:
-        """Generate attack flow diagram for a specific scenario"""
+        """Generate attack flow diagram based on threat intelligence and scenario phases"""
         try:
-            # Multiple patterns to extract steps - more robust
-            step_patterns = [
-                r'Step (\d+):\s*([^(]+?)\s*\(([^)]+)\)',  # Step X: Description (MITRE)
-                r'Step (\d+):\s*([^\n]+?)\s*\(([^)]+)\)',  # Step X: Description (MITRE) - single line
-                r'Step (\d+):\s*([^\n]+)',  # Step X: Description - no MITRE
-                r'(\d+)\.[^:]*:\s*([^(]+?)\s*\(([^)]+)\)',  # Numbered sections with MITRE
+            # Extract phases from scenario text - look for the 7-phase structure
+            phase_patterns = [
+                r'Phase (\d+):\s*([^\n]+?)\s*\(([^)]+)\)',  # Phase X: Description (MITRE)
+                r'\*\*Phase (\d+):[^*]*?\*\*([^\n]+)',  # **Phase X:** Description
+                r'Phase (\d+):[^\n]*?([A-Z][^\n]+)',  # Phase X: Description
             ]
             
-            steps = []
+            phases = []
             
-            # Try each pattern
-            for pattern in step_patterns:
-                matches = re.finditer(pattern, scenario_text, re.DOTALL)
+            # Try to extract phases
+            for pattern in phase_patterns:
+                matches = re.finditer(pattern, scenario_text, re.DOTALL | re.IGNORECASE)
                 for match in matches:
                     if len(match.groups()) >= 3:
-                        step_num = match.group(1)
-                        step_desc = match.group(2).strip()
+                        phase_num = match.group(1)
+                        phase_desc = match.group(2).strip()
                         mitre_id = match.group(3).strip()
                     else:
-                        step_num = match.group(1)
-                        step_desc = match.group(2).strip()
+                        phase_num = match.group(1)
+                        phase_desc = match.group(2).strip() if len(match.groups()) > 1 else f"Phase {phase_num}"
                         mitre_id = 'T????'
                     
-                    # Clean up MITRE ID
+                    # Extract MITRE ID if present
                     mitre_match = re.search(r'T\d{4}(?:\.\d{3})?', mitre_id)
                     if mitre_match:
                         mitre_id = mitre_match.group(0)
                     
-                    # Clean step description
-                    step_desc = re.sub(r'<[^>]+>', '', step_desc)  # Remove HTML tags
-                    step_desc = step_desc.replace('\n', ' ').strip()
+                    # Clean phase description
+                    phase_desc = re.sub(r'<[^>]+>', '', phase_desc)
+                    phase_desc = phase_desc.replace('\n', ' ').strip()
                     
-                    if step_desc and len(step_desc) > 5:  # Valid step
-                        steps.append((step_desc[:50], mitre_id))  # Limit length
+                    if phase_desc and len(phase_desc) > 5:
+                        phases.append((phase_desc[:40], mitre_id))
                 
-                if steps:  # If we found steps with this pattern, use them
+                if phases:
                     break
             
-            # Fallback: create generic steps if none found
-            if not steps:
-                steps = [
-                    (f"Attack Step for Scenario {scenario_id}", "T1566"),
-                    ("Execution Phase", "T1059"),
-                    ("Impact Phase", "T1485")
-                ]
-                print(f"No steps found, using generic steps for Scenario {scenario_id}")
+            # If no phases found, create threat intelligence-based attack flow
+            if not phases and threats:
+                phases = self.create_threat_based_attack_flow(threats, scenario_id)
             
-            print(f"Extracted {len(steps)} steps for Scenario {scenario_id}: {[s[0][:30] for s in steps]}")
+            # Final fallback: use standard attack phases
+            if not phases:
+                phases = [
+                    ("Reconnaissance", "T1595"),
+                    ("Initial Access", "T1190"),
+                    ("Execution", "T1059"),
+                    ("Persistence", "T1053"),
+                    ("Privilege Escalation", "T1068"),
+                    ("Defense Evasion", "T1070"),
+                    ("Impact", "T1486")
+                ]
+            
+            print(f"Generated {len(phases)} phases for Scenario {scenario_id}")
 
-            # Generate custom Mermaid diagram based on actual steps
-            mermaid_code = self.generate_custom_attack_flow(steps, scenario_id, product_name)
+            # Generate threat intelligence-specific Mermaid diagram
+            mermaid_code = self.generate_threat_specific_attack_flow(phases, scenario_id, product_name, threats)
 
             return self.generate_mermaid_html(mermaid_code, f"🎯 Attack Flow - Scenario {scenario_id}")
 
@@ -171,46 +177,89 @@ class MCPDiagramGenerator:
         print("✅ Diagram generator ready")
         return self
     
-    def generate_custom_attack_flow(self, steps: List[tuple], scenario_id: str, product_name: str) -> str:
-        """Generate custom Mermaid diagram from parsed attack steps"""
-
-        if not steps:
-            return f"graph TD\n    A[\"Scenario {scenario_id}: No Steps Found\"]"
+    def create_threat_based_attack_flow(self, threats: List[Dict[str, Any]], scenario_id: str) -> List[tuple]:
+        """Create attack flow phases based on actual threat intelligence"""
+        phases = []
+        
+        # Get top threat for this scenario
+        if threats:
+            top_threat = threats[0]  # Highest ranked threat
+            cve_id = top_threat.get('cve_id', 'Unknown')
+            severity = top_threat.get('severity', 'UNKNOWN')
+            
+            # Create phases based on threat characteristics
+            if 'remote' in top_threat.get('description', '').lower():
+                phases.append((f"Remote Exploit {cve_id}", "T1190"))
+            else:
+                phases.append((f"Local Exploit {cve_id}", "T1068"))
+            
+            if severity in ['CRITICAL', 'HIGH']:
+                phases.append(("Code Execution", "T1059"))
+                phases.append(("Privilege Escalation", "T1068"))
+            
+            phases.append(("System Compromise", "T1486"))
+        
+        return phases if phases else []
+    
+    def generate_threat_specific_attack_flow(self, phases: List[tuple], scenario_id: str, product_name: str, threats: List[Dict[str, Any]]) -> str:
+        """Generate threat intelligence-specific Mermaid diagram"""
+        if not phases:
+            return f"graph TD\n    A[\"Scenario {scenario_id}: No Attack Flow\"]"
 
         # Clean product name for Mermaid
         clean_product = product_name.replace('"', '').replace("'", '').replace('\n', ' ')[:25]
-
-        # Simplified attack flow - more reliable
-        mermaid = f"graph TD\n    Start[\"Target: {clean_product}\"]\n"
         
-        # Add each step in sequence
-        for i, (step_desc, mitre_id) in enumerate(steps, 1):
-            step_name = f"Step{i}"
+        # Get threat context for diagram
+        threat_context = ""
+        if threats:
+            top_threat = threats[0]
+            cve_id = top_threat.get('cve_id', '')
+            severity = top_threat.get('severity', '')
+            if cve_id:
+                threat_context = f"\\n{cve_id} ({severity})"
+
+        # Build threat-specific attack flow
+        mermaid = f"graph TD\n    Target[\"🎯 {clean_product}{threat_context}\"]\n"
+        
+        # Add each phase with threat intelligence context
+        for i, (phase_desc, mitre_id) in enumerate(phases, 1):
+            phase_name = f"Phase{i}"
             
-            # Clean and shorten description
-            clean_desc = step_desc.replace('"', '').replace("'", '').replace('\n', ' ').strip()[:40]
+            # Clean and format description
+            clean_desc = phase_desc.replace('"', '').replace("'", '').replace('\n', ' ').strip()[:35]
             clean_mitre = mitre_id.strip()
             
-            # Add step node
-            mermaid += f"    {step_name}[\"{clean_desc}\\n{clean_mitre}\"]\n"
+            # Add phase node with threat intelligence context
+            mermaid += f"    {phase_name}[\"{clean_desc}\\n{clean_mitre}\"]\n"
             
-            # Connect steps
+            # Connect phases
             if i == 1:
-                mermaid += f"    Start --> {step_name}\n"
+                mermaid += f"    Target --> {phase_name}\n"
             else:
-                prev_step = f"Step{i-1}"
-                mermaid += f"    {prev_step} --> {step_name}\n"
+                prev_phase = f"Phase{i-1}"
+                mermaid += f"    {prev_phase} --> {phase_name}\n"
         
-        # Add final impact
-        mermaid += f"    Step{len(steps)} --> Impact[\"Impact Achieved\"]\n\n"
+        # Add final outcome based on threat severity
+        if threats and threats[0].get('severity') in ['CRITICAL', 'HIGH']:
+            mermaid += f"    Phase{len(phases)} --> Compromise[\"🚨 System Compromise\"]\n\n"
+        else:
+            mermaid += f"    Phase{len(phases)} --> Impact[\"⚠️ Security Impact\"]\n\n"
         
-        # Add styling
+        # Add threat intelligence-based styling
         mermaid += """    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px
-    classDef critical fill:#ffebee,stroke:#d32f2f,stroke-width:2px
-    classDef start fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    classDef critical fill:#ffebee,stroke:#d32f2f,stroke-width:3px
+    classDef high fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef target fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
     
-    class Start start
-    class Impact critical"""
+    class Target target"""
+        
+        # Apply severity-based styling
+        if threats:
+            severity = threats[0].get('severity', 'UNKNOWN')
+            if severity == 'CRITICAL':
+                mermaid += "\n    class Compromise critical"
+            elif severity == 'HIGH':
+                mermaid += "\n    class Impact high"
         
         return mermaid
     
