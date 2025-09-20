@@ -32,21 +32,26 @@ class MCPDiagramGenerator:
         
         # Find all scenario placeholders
         placeholders = re.findall(r'\[DIAGRAM_PLACEHOLDER_SCENARIO_([A-Z0-9]+)\]', report_content)
-        
+        print("🔍 Found placeholders:", placeholders)
+
         for scenario_id in placeholders:
             # Extract the specific scenario content
             scenario_pattern = f'SCENARIO {scenario_id}:.*?(?=SCENARIO [A-Z0-9]+:|\\[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}\\]|$)'
             scenario_match = re.search(scenario_pattern, report_content, re.DOTALL)
-            
+
             if scenario_match:
                 scenario_text = scenario_match.group(0)
-                
+                print(f"🖼️ Generating diagram for Scenario {scenario_id}...")
+
                 # Generate diagram for this specific scenario
                 diagram_html = await self.generate_scenario_diagram(scenario_text, scenario_id, threats, product_name)
-                
+                print(f"✅ Generated diagram HTML for Scenario {scenario_id}:", diagram_html)
+
                 # Replace placeholder with diagram
                 placeholder = f'[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}]'
                 report_content = report_content.replace(placeholder, diagram_html)
+            else:
+                print(f"⚠️ No matching content found for Scenario {scenario_id}")
         
         return report_content
     
