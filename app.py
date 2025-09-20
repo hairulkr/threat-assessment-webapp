@@ -25,11 +25,6 @@ except ImportError:
 # Import required modules with error handling
 try:
     from gemini_client import GeminiClient
-except ImportError as e:
-    st.error(f"Error importing GeminiClient: {e}")
-    st.stop()
-
-try:
     from agents.product_info_agent import ProductInfoAgent
     from agents.threat_intel_agent import ThreatIntelAgent
     from agents.threat_context_agent import ThreatContextAgent
@@ -37,8 +32,10 @@ try:
     from agents.controls_agent import ControlsAgent
     from agents.report_agent import ReportAgent
     from agents.reviewer_agent import ReviewerAgent
-except ImportError as e:
-    st.error(f"Error importing agents: {e}")
+except Exception as e:
+    import streamlit as st
+    st.error(f"Error importing modules: {e}")
+    st.error("Please check if all required files are present in the repository.")
     st.stop()
 
 # Page configuration
