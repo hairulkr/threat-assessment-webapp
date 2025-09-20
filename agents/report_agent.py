@@ -179,8 +179,26 @@ class ReportAgent:
         report_prompt = f"""
         Generate a technical threat modeling report based on the collected data.
         
-        COLLECTED DATA:
-        {json.dumps(all_data, indent=2)}
+        THREAT INTELLIGENCE DATA:
+        Product: {all_data.get('product_name', 'Unknown')}
+        
+        TOP THREATS (Multi-Agent Ranked):
+        {json.dumps([{
+            'cve_id': t.get('cve_id', 'N/A'),
+            'title': t.get('title', ''),
+            'severity': t.get('severity', ''),
+            'cvss_score': t.get('cvss_score', 0),
+            'source': t.get('source', ''),
+            'authority': t.get('authority', ''),
+            'ensemble_score': t.get('ensemble_score', 0),
+            'description': t.get('description', '')[:200]
+        } for t in all_data.get('threats', [])[:8]], indent=2)}
+        
+        PRODUCT COMPONENTS:
+        {json.dumps(all_data.get('product_info', {}).get('components', []), indent=2)}
+        
+        RISK ANALYSIS:
+        {json.dumps(all_data.get('risk_analysis', {}), indent=2)}
         
         
         Create a threat modeling report with these sections:
@@ -195,36 +213,43 @@ class ReportAgent:
            - Attack surface
            - Dependencies
         
-        3. THREAT ANALYSIS
-           - Recent CVE vulnerabilities with CVSS scores
-           - Attack trends
-           - Threat intelligence findings
+        3. COMPREHENSIVE THREAT ANALYSIS
+           - Detailed CVE analysis with CVSS scores, exploit availability, and patch status
+           - Active threat actor campaigns targeting similar products
+           - Exploit code availability and weaponization timeline
+           - Attack surface analysis based on identified components
+           - Threat intelligence correlation across multiple sources
+           - Zero-day potential and emerging threat patterns
         
-        4. ATTACK SCENARIOS
-           Create 2 realistic attack scenarios based on the top 3 threats. For each scenario:
+        4. ATTACK SCENARIOS (MAX 3)
+           Create exactly 3 detailed attack scenarios based on the highest-ranked threats:
            
-           SCENARIO A: [Attack Type]
-           Step 1: [Attack Step] (MITRE T####)
-           Step 2: [Attack Step] (MITRE T####)
-           Step 3: [Attack Step] (MITRE T####)
-           [Continue with all steps]
+           SCENARIO A: [Specific Attack Type based on actual CVE/threat]
+           Step 1: [Initial Access Method] (MITRE T####) - Include specific tools, techniques, and indicators
+           Step 2: [Execution/Persistence] (MITRE T####) - Detail the attack progression and technical methods
+           Step 3: [Privilege Escalation/Lateral Movement] (MITRE T####) - Explain how attackers expand access
+           Step 4: [Data Exfiltration/Impact] (MITRE T####) - Describe the final objectives and business impact
            
            For each step include:
-           - Technical details
-           - Tools used
-           - Detection methods
+           - Specific technical details relevant to the identified threats
+           - Actual tools and techniques used by threat actors
+           - Detection methods and indicators of compromise (IOCs)
+           - Realistic timeline and difficulty assessment
            
-           IMPORTANT: End each scenario with: [DIAGRAM_PLACEHOLDER_SCENARIO_X]
-           This will be replaced with the attack flow diagram for that specific scenario.
+           End each scenario with: [DIAGRAM_PLACEHOLDER_SCENARIO_X]
         
-        5. SECURITY CONTROLS
-           Map controls to attack steps:
-           "MFA mitigates Step 4 by preventing credential reuse"
+        5. SECURITY CONTROLS & MITIGATIONS
+           Map specific controls to attack steps with implementation details:
+           "MFA with hardware tokens mitigates Step 4 credential reuse (Priority: HIGH, Cost: MEDIUM)"
            
-           Include:
-           - Technical controls
-           - Administrative controls
-           - Implementation priority
+           Include for each control:
+           - Technical implementation details and configuration requirements
+           - Administrative and procedural controls
+           - Detection and monitoring capabilities
+           - Implementation priority based on threat severity and business impact
+           - Cost-benefit analysis and resource requirements
+           - Effectiveness rating against identified attack vectors
+           - Integration with existing security stack
         
         Format as structured technical text with clear sections.
         Use HTML formatting with proper tags for headings, paragraphs, lists, and emphasis.
@@ -242,7 +267,7 @@ class ReportAgent:
         - Use <span class="mitre"> for MITRE technique references
         """
         
-        report_content = await self.llm.generate(report_prompt, max_tokens=2000)
+        report_content = await self.llm.generate(report_prompt, max_tokens=2500)
         
         # Clean up LLM response - remove unwanted content
         report_content = self.clean_llm_response(report_content)

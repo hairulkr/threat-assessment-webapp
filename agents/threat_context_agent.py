@@ -1,6 +1,6 @@
 import json
 from typing import List, Dict, Any
-from threat_intel_sources import ThreatIntelSources
+# Note: Using optimized threat intel system instead of ThreatIntelSources
 
 class ThreatContextAgent:
     """Enhanced threat intelligence with web context"""
@@ -11,9 +11,8 @@ class ThreatContextAgent:
     async def gather_threat_context(self, product_name: str, existing_threats: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Gather additional threat context from multiple sources"""
         
-        # Get threat intelligence from external sources
-        async with ThreatIntelSources() as intel_sources:
-            web_intel = await intel_sources.gather_all_intel(product_name)
+        # Note: Web intelligence gathering disabled - using optimized threat intel system
+        web_intel = []
         
         if not web_intel:
             return {
@@ -23,26 +22,26 @@ class ThreatContextAgent:
             }
         
         # LLM analyzes and contextualizes the intelligence
+        # Optimize: Limit data for token efficiency
+        threat_summary = [{'title': t.get('title', '')[:40], 'severity': t.get('severity', '')} for t in existing_threats[:3]]
+        intel_summary = [{'source': i.get('source', ''), 'type': i.get('type', '')} for i in web_intel[:3]]
+        
         context_prompt = f"""
-        Analyze this threat intelligence for {product_name}:
+        Threat analysis for {product_name}:
         
-        EXISTING CVE THREATS:
-        {json.dumps(existing_threats, indent=2)}
+        CVE THREATS: {json.dumps(threat_summary)}
+        WEB INTEL: {json.dumps(intel_summary)}
         
-        WEB INTELLIGENCE:
-        {json.dumps(web_intel, indent=2)}
-        
-        Provide analysis in JSON format:
+        JSON response:
         {{
-            "context_summary": "Brief summary of additional threats found",
-            "key_insights": ["insight1", "insight2", "insight3"],
-            "threat_trends": "Current threat landscape trends",
-            "enhanced_recommendations": ["rec1", "rec2", "rec3"]
+            "context_summary": "Brief summary",
+            "key_insights": ["insight1", "insight2"],
+            "enhanced_recommendations": ["rec1", "rec2"]
         }}
         """
         
         try:
-            response = await self.llm.generate(context_prompt, max_tokens=600)
+            response = await self.llm.generate(context_prompt, max_tokens=400)
             # Extract JSON from response
             import re
             json_match = re.search(r'\{.*\}', response, re.DOTALL)

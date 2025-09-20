@@ -60,19 +60,17 @@ class ReviewerAgent:
     async def batch_data_quality_review(self, product_info: Dict[str, Any], threats: List[Dict[str, Any]], threat_context: Dict[str, Any]) -> Dict[str, Any]:
         """Batch 1: Review data quality across ProductInfo, ThreatIntel, and ThreatContext agents"""
         
+        # Optimize: Summarize data for token efficiency
+        threat_summary = [f"{t.get('title', '')[:30]} ({t.get('severity', '')})" for t in threats[:3]]
+        intel_sources = [item.get('source', '') for item in threat_context.get('web_intelligence', [])[:3]]
+        
         review_prompt = f"""
-        As a cybersecurity data analyst, review the quality and accuracy of threat intelligence data:
+        Cybersecurity data quality review:
         
-        PRODUCT ANALYSIS:
-        {product_info}
-        
-        THREAT INTELLIGENCE:
-        Top Threats: {[t.get('title', '') + ' (' + t.get('severity', '') + ')' for t in threats[:5]]}
-        Total Threats: {len(threats)}
-        
-        WEB INTELLIGENCE:
-        Sources: {len(threat_context.get('web_intelligence', []))}
-        Intelligence: {[item.get('source', '') + ': ' + item.get('type', '') for item in threat_context.get('web_intelligence', [])[:3]]}
+        PRODUCT: {product_info.get('name', 'Unknown')}
+        TOP 3 THREATS: {threat_summary}
+        TOTAL THREATS: {len(threats)}
+        INTEL SOURCES: {intel_sources}
         
         COMPREHENSIVE DATA QUALITY ASSESSMENT:
         
@@ -113,7 +111,7 @@ class ReviewerAgent:
         """
         
         try:
-            review = await self.llm.generate(review_prompt, max_tokens=1000)
+            review = await self.llm.generate(review_prompt, max_tokens=600)
             
             # Check for termination recommendation based on aggregate confidence
             terminate = ("RECOMMEND" in review.upper() and "TERMINATE" in review.upper()) or ("AGGREGATE CONFIDENCE" in review.upper() and any(score in review for score in ["1/10", "2/10", "3/10"]))
@@ -145,8 +143,8 @@ class ReviewerAgent:
         print(f"   📈 SOURCES: {confidence_metrics['total_sources']} total (NVD CVEs: {confidence_metrics['nvd_cves_found']})")
         print(f"   🎯 RELEVANCE: {confidence_metrics['average_relevance']}/1.0 average")
         
-        # Only terminate if absolutely no relevant intelligence found
-        if confidence_metrics['confidence_score'] < 2.0 and confidence_metrics['total_sources'] == 0:
+        # Only terminate if absolutely no relevant intelligence found (lowered threshold)
+        if confidence_metrics['confidence_score'] < 1.5 and confidence_metrics['total_sources'] == 0:
             return {
                 "comprehensive_review": {
                     "confidence_metrics": confidence_metrics,
@@ -202,12 +200,14 @@ class ReviewerAgent:
     async def generate_executive_summary(self, all_data: Dict[str, Any]) -> str:
         """Generate executive summary based on comprehensive review"""
         
-        exec_summary_prompt = f"""
-        Create an executive summary for this threat modeling assessment:
+        # Optimize: Use minimal data for executive summary
+        critical_count = len([t for t in all_data.get('threats', []) if t.get('severity') == 'CRITICAL'])
+        high_count = len([t for t in all_data.get('threats', []) if t.get('severity') == 'HIGH'])
         
-        PRODUCT: {all_data.get('product_name')}
-        CRITICAL THREATS: {len([t for t in all_data.get('threats', []) if t.get('severity') == 'CRITICAL'])}
-        HIGH THREATS: {len([t for t in all_data.get('threats', []) if t.get('severity') == 'HIGH'])}
+        exec_summary_prompt = f"""
+        Executive summary for {all_data.get('product_name', 'Product')}:
+        
+        CRITICAL: {critical_count} | HIGH: {high_count}
         
         EXECUTIVE SUMMARY:
         
@@ -235,7 +235,7 @@ class ReviewerAgent:
         """
         
         try:
-            exec_summary = await self.llm.generate(exec_summary_prompt, max_tokens=600)
+            exec_summary = await self.llm.generate(exec_summary_prompt, max_tokens=400)
             return f"""
             <h1>📋 EXECUTIVE SUMMARY</h1>
             <div class="executive-summary">

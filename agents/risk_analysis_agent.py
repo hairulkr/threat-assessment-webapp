@@ -13,39 +13,26 @@ class RiskAnalysisAgent:
         print("   Analyzing threat risks and MITRE techniques...")
         
         # LLM analyzes threats and maps to MITRE techniques
+        # Optimize: Only analyze top 3 threats for token efficiency
+        top_threats = [{'title': t.get('title', '')[:50], 'severity': t.get('severity', ''), 'cvss_score': t.get('cvss_score', 0)} for t in threats[:3]]
+        
         analysis_prompt = f"""
-        Analyze cybersecurity risks for {product_info.get('name', 'Unknown Product')}:
+        Risk analysis for {product_info.get('name', 'Product')}:
         
-        THREATS FOUND:
-        {json.dumps([{'title': t.get('title', ''), 'severity': t.get('severity', ''), 'cvss_score': t.get('cvss_score', 0)} for t in threats[:5]], indent=2)}
+        TOP 3 THREATS: {json.dumps(top_threats)}
         
-        Provide comprehensive risk analysis in JSON format:
+        JSON response:
         {{
             "overall_risk_level": "CRITICAL/HIGH/MEDIUM/LOW",
             "risk_score": 8.5,
-            "threat_analysis": [
-                {{
-                    "threat_id": "CVE-2024-1234",
-                    "risk_level": "HIGH",
-                    "attack_vector": "Network",
-                    "impact": "Complete system compromise",
-                    "likelihood": "HIGH",
-                    "mitre_technique": "T1190",
-                    "business_impact": "Data breach, service disruption"
-                }}
-            ],
-            "mitre_mapping": [
-                {{"technique": "T1190", "tactic": "Initial Access", "description": "Exploit Public-Facing Application"}},
-                {{"technique": "T1059", "tactic": "Execution", "description": "Command and Scripting Interpreter"}}
-            ],
-            "recommendations": ["Implement WAF", "Update vulnerable components"]
+            "threat_analysis": [{{"threat_id": "CVE-ID", "risk_level": "HIGH", "mitre_technique": "T1190"}}],
+            "mitre_mapping": [{{"technique": "T1190", "tactic": "Initial Access"}}],
+            "recommendations": ["Action 1", "Action 2"]
         }}
-        
-        Focus on realistic MITRE ATT&CK techniques that match the identified threats.
         """
         
         try:
-            response = await self.llm.generate(analysis_prompt, max_tokens=800)
+            response = await self.llm.generate(analysis_prompt, max_tokens=600)
             # Extract JSON from response
             import re
             json_match = re.search(r'\{.*\}', response, re.DOTALL)

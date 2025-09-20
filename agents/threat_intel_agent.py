@@ -1,14 +1,18 @@
 import json
 import asyncio
 from typing import List, Dict, Any
-from threat_intel_sources import ThreatIntelSources
+from optimized_threat_intel import OptimizedThreatIntel
+from agents.specialized_ranking_agents import MultiAgentRankingOrchestrator
+from agents.accuracy_enhancer import ThreatAccuracyEnhancer
 
 class ThreatIntelAgent:
-    """Comprehensive threat intelligence gathering with 10+ sources"""
+    """Multi-agent optimized threat intelligence with enhanced accuracy for analysts"""
     
     def __init__(self, llm_client):
         self.llm = llm_client
-        self.intel_sources = ThreatIntelSources()
+        self.intel_sources = OptimizedThreatIntel()
+        self.ranking_orchestrator = MultiAgentRankingOrchestrator()
+        self.accuracy_enhancer = ThreatAccuracyEnhancer()
     
     async def fetch_recent_threats(self, product_info: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Fetch real threat intelligence from external APIs"""
@@ -18,12 +22,12 @@ class ThreatIntelAgent:
         
         all_threats = []
         
-        # Use comprehensive threat intelligence sources
+        # Use optimized threat intelligence sources
         async with self.intel_sources as intel_client:
-            # Use primary product name for comprehensive intelligence gathering
+            # Use primary product name for optimized intelligence gathering
             primary_keyword = keywords[0] if keywords else product_info.get('name', '')
-            print(f"   Gathering comprehensive threat intelligence for: {primary_keyword}")
-            all_threats = await intel_client.gather_all_intel(primary_keyword)
+            print(f"   Gathering optimized threat intelligence for: {primary_keyword}")
+            all_threats = await intel_client.gather_optimized_intel(primary_keyword)
         
         # Sort all threats by publication date (most recent first)
         from datetime import datetime
@@ -49,17 +53,25 @@ class ThreatIntelAgent:
         ), reverse=True)
         
         if all_threats:
-            # Threats are already filtered and prioritized by ThreatIntelSources
-            official_count = len([t for t in all_threats if t.get('authority') == 'OFFICIAL'])
-            verified_count = len([t for t in all_threats if t.get('authority') == 'VERIFIED'])
-            community_count = len([t for t in all_threats if t.get('authority') == 'COMMUNITY'])
+            # Apply multi-agent ranking optimization
+            print(f"   🤖 MULTI-AGENT RANKING: Optimizing {len(all_threats)} threats")
+            ranking_result = await self.ranking_orchestrator.optimize_threat_ranking(all_threats, primary_keyword)
             
-            print(f"   📊 FINAL RESULTS: {len(all_threats)} high-confidence threats")
-            print(f"   🏢 Official: {official_count} | 🔒 Verified: {verified_count} | 👥 Community: {community_count}")
+            optimized_threats = ranking_result['optimized_threats']
+            metrics = ranking_result['optimization_metrics']
+            breakdown = ranking_result['ranking_breakdown']
             
-            return all_threats  # Already optimally filtered and limited
+            # Enhance threats with analyst-focused details
+            enhanced_threats = self.accuracy_enhancer.enhance_threat_details(optimized_threats)
+            analyst_summary = self.accuracy_enhancer.generate_analyst_summary(enhanced_threats)
+            
+            print(f"   🎯 OPTIMIZED RESULTS: {len(enhanced_threats)} enhanced threats (score: {metrics['optimization_score']})")
+            print(f"   🏢 CVE: {breakdown['cve_threats']} | 💥 Exploits: {breakdown['exploit_threats']} | 🔒 Relevant: {breakdown['relevant_threats']}")
+            print(f"   ⚠️ ANALYST PRIORITY: {analyst_summary['threat_summary']['public_exploits']} public exploits, {analyst_summary['threat_summary']['easy_attacks']} easy attacks")
+            
+            return enhanced_threats
         
-        print(f"   ⚠️ No relevant threats found for {product_info.get('name', 'product')}")
+        print(f"   🔍 No threats found for {product_info.get('name', 'product')} - trying broader search")
         return []
     
     def _extract_keywords(self, product_info: Dict[str, Any]) -> List[str]:

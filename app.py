@@ -76,6 +76,12 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
     
+    /* Red theme when threats found */
+    .main-header.threats-found {
+        background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%) !important;
+        box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3) !important;
+    }
+    
     /* Login container styling */
     .login-container {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -99,15 +105,17 @@ st.markdown("""
         color: var(--text-color, #fafafa);
         padding: 1rem;
         border-radius: 8px;
-        border-left: 4px solid #667eea;
+        border-left: 4px solid #dc2626;
         margin: 1rem 0;
-        border: 1px solid #444;
+        border: 1px solid #dc2626;
+        box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
     }
     
     [data-theme="light"] .threat-card {
-        background: #f8f9fa;
-        color: #262730;
-        border: 1px solid #dee2e6;
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+        border-left: 4px solid #dc2626;
     }
     
     /* Mobile responsive design */
@@ -534,9 +542,13 @@ class ThreatModelingWebApp:
         # Check authentication first
         self.check_authentication()
         
-        # Header
-        st.markdown("""
-        <div class="main-header">
+        # Header - change color if threats found
+        header_class = "main-header"
+        if st.session_state.assessment_complete and st.session_state.all_data and st.session_state.all_data.get('threats'):
+            header_class += " threats-found"
+        
+        st.markdown(f"""
+        <div class="{header_class}">
             <h1>🛡️ Cybersecurity Threat Assessment</h1>
             <p>AI-Powered Threat Modeling & Risk Analysis</p>
         </div>
@@ -731,10 +743,12 @@ class ThreatModelingWebApp:
                     
                     col_a, col_b = st.columns([4, 1])
                     with col_a:
+                        is_running = st.session_state.get('assessment_running', False)
+                        button_text = "⏳ Processing Assessment..." if is_running else "🚀 Start Assessment"
                         submit_button = st.form_submit_button(
-                            "🚀 Start Assessment", 
+                            button_text,
                             type="primary",
-                            disabled=st.session_state.get('assessment_running', False)
+                            disabled=is_running
                         )
                     with col_b:
                         example_button = st.form_submit_button(
@@ -770,15 +784,10 @@ class ThreatModelingWebApp:
                     st.error("🚫 Daily limit reached (10 assessments). Try again tomorrow.")
                     st.stop()
                 
+                # Set running state and rerun to show disabled button
+                st.session_state.assessment_running = True
                 st.session_state.product_name = product_name
-                report_content, all_data = asyncio.run(self.run_assessment(product_name))
-                if report_content:
-                    # Increment usage after successful assessment
-                    usage_tracker.increment_usage()
-                    st.session_state.report_content = report_content
-                    st.session_state.all_data = all_data
-                    st.session_state.assessment_complete = True
-                    st.rerun()
+                st.rerun()
             
             elif example_button:
                 if not self.check_rate_limit():
@@ -790,15 +799,10 @@ class ThreatModelingWebApp:
                     st.error("🚫 Daily limit reached (10 assessments). Try again tomorrow.")
                     st.stop()
                 
+                # Set running state and rerun to show disabled button
+                st.session_state.assessment_running = True
                 st.session_state.product_name = "Visual Studio Code"
-                report_content, all_data = asyncio.run(self.run_assessment("Visual Studio Code"))
-                if report_content:
-                    # Increment usage after successful assessment
-                    usage_tracker.increment_usage()
-                    st.session_state.report_content = report_content
-                    st.session_state.all_data = all_data
-                    st.session_state.assessment_complete = True
-                    st.rerun()
+                st.rerun()
         
         with col2:
             st.header("ℹ️ About")
@@ -839,6 +843,23 @@ class ThreatModelingWebApp:
                         filename
                     )
                     st.markdown(download_link, unsafe_allow_html=True)
+        
+        # Run assessment if in running state
+        if st.session_state.get('assessment_running') and not st.session_state.get('assessment_complete'):
+            product_name = st.session_state.get('product_name', '')
+            usage_tracker = st.session_state.usage_tracker
+            
+            try:
+                report_content, all_data = asyncio.run(self.run_assessment(product_name))
+                if report_content:
+                    # Increment usage after successful assessment
+                    usage_tracker.increment_usage()
+                    st.session_state.report_content = report_content
+                    st.session_state.all_data = all_data
+                    st.session_state.assessment_complete = True
+            finally:
+                st.session_state.assessment_running = False
+            st.rerun()
         
         # Display results if assessment is complete
         if st.session_state.assessment_complete and st.session_state.report_content:
