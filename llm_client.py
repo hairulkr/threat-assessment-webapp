@@ -149,31 +149,36 @@ class LLMClient:
             "Content-Type": "application/json"
         }
         
-        # Shorter prompt for faster response
-        if len(prompt) > 2000:
-            prompt = prompt[:2000] + "... [truncated for faster response]"
+        # Don't truncate - sonar-pro can handle large contexts
+        # Truncation was likely breaking the JSON structure in prompts
         
         data = {
             "model": "sonar-pro",
             "messages": [
                 {
-                    "role": "user",
+                    "role": "user", 
                     "content": prompt
                 }
             ],
-            "max_tokens": min(max_tokens, 1000),
-            "temperature": 0.2
+            "max_tokens": max_tokens,  # Don't artificially limit
+            "temperature": 0.1,  # Lower for more consistent responses
+            "top_p": 0.9,
+            "top_k": 0,
+            "stream": False,
+            "presence_penalty": 0,
+            "frequency_penalty": 1
         }
         
         def make_request():
             """Synchronous request function"""
             try:
                 logging.info(f"Making Perplexity request with {len(prompt)} chars")
+                # Perplexity can be slow for complex queries - use longer timeout
                 response = requests.post(
                     self.base_url, 
                     json=data, 
                     headers=headers, 
-                    timeout=45  # Reduced timeout
+                    timeout=120  # Increased timeout for complex queries
                 )
                 
                 elapsed = (datetime.now() - start_time).total_seconds()

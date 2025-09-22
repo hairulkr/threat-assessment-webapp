@@ -322,7 +322,7 @@ class ThreatModelingWebApp:
                 try:
                     controls = await asyncio.wait_for(
                         agents['controls'].propose_controls(risks),
-                        timeout=20  # Reduced timeout
+                        timeout=150  # Increased for Perplexity
                     )
                 except asyncio.TimeoutError:
                     st.warning("Control generation timed out - using basic controls")
@@ -350,14 +350,14 @@ class ThreatModelingWebApp:
             
             with st.spinner("📊 Conducting expert review and generating report..."):
                 try:
-                    # Run review and report generation with shorter timeouts
+                    # Run review and report generation with Perplexity-compatible timeouts
                     review_task = asyncio.wait_for(
                         agents['reviewer'].conduct_comprehensive_review(all_data), 
-                        timeout=30
+                        timeout=120
                     )
                     report_task = asyncio.wait_for(
                         agents['report'].generate_comprehensive_report(all_data),
-                        timeout=45
+                        timeout=180
                     )
                     
                     review_results, report_content = await asyncio.gather(
