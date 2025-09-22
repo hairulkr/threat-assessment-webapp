@@ -62,7 +62,7 @@ class LLMClient:
             return
         
         self.model = "perplexity-client"
-        self.model_name = "sonar-pro"
+        self.model_name = "llama-3.1-sonar-small-128k-online"
         self.base_url = "https://api.perplexity.ai/chat/completions"
     
     def is_available(self) -> bool:
@@ -154,15 +154,25 @@ class LLMClient:
             prompt = prompt[:2000] + "... [truncated for faster response]"
         
         data = {
-            "model": "sonar-pro",
+            "model": "llama-3.1-sonar-small-128k-online",  # Updated to current model
             "messages": [
                 {
                     "role": "user",
                     "content": prompt
                 }
             ],
-            "max_tokens": min(max_tokens, 1000),  # Limit tokens for faster response
-            "temperature": 0.1  # Lower temperature for more focused responses
+            "max_tokens": min(max_tokens, 1000),
+            "temperature": 0.2,
+            "top_p": 0.9,
+            "return_citations": True,
+            "search_domain_filter": ["perplexity.ai"],
+            "return_images": False,
+            "return_related_questions": False,
+            "search_recency_filter": "month",
+            "top_k": 0,
+            "stream": False,
+            "presence_penalty": 0,
+            "frequency_penalty": 1
         }
         
         def make_request():
@@ -182,6 +192,12 @@ class LLMClient:
                 if response.status_code == 200:
                     result = response.json()
                     content = result["choices"][0]["message"]["content"]
+                    
+                    # Add citations if available
+                    if "citations" in result and result["citations"]:
+                        citations = "\n\nSources:\n" + "\n".join([f"- {cite}" for cite in result["citations"][:3]])
+                        content += citations
+                    
                     logging.info(f"Perplexity success: {len(content)} chars returned")
                     return content
                 else:
