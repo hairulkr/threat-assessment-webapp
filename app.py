@@ -902,22 +902,33 @@ class ThreatModelingWebApp:
         with col2:
             st.header("ℹ️ About")
             with st.container(border=True):
+                # Collapsed view - show only key points
                 st.markdown("""
-                **🎯 Latest Attack Intelligence:** Prioritizes most current attack patterns and threat actor campaigns from latest available sources
+                **🎯 Latest Attack Intelligence:** Current attack patterns and threat actor campaigns
                 
-                **📊 17-Source Intelligence:** NVD CVE, GitHub Security, CISA Alerts, Google CSE (12 databases), Microsoft Security with authority weighting
+                **📊 17-Source Intelligence:** NVD CVE, GitHub Security, CISA Alerts, Google CSE (12 databases), Microsoft Security
                 
-                **🔍 Scenario-Specific Modeling:**
-                - **Dynamic Scenario Types:** Remote Code Execution, Privilege Escalation, Data Exfiltration, Availability, Supply Chain attacks
-                - **Threat-Matched Attack Flows:** Each scenario gets unique attack flow diagrams based on actual threat intelligence
-                - **CVE-Based Analysis:** Reconnaissance → Initial Access → Execution → Persistence → Privilege Escalation → Defense Evasion → Impact
-                
-                **🏆 Enhanced Intelligence:**
-                - **Multi-Agent Ranking:** CVE Agent (CVSS + recency), Exploit Agent (weaponization status), Authority Agent (source credibility), Relevance Agent (product matching)
-                - **Ensemble Scoring:** Authority weight × Recency factor × CVSS normalized × Relevance score
-                - **Priority Algorithm:** Official sources (3x weight) → Verified sources (2x) → Community (1x) with exploit availability boost
-                - **Accuracy Enhancement:** ThreatAccuracyEnhancer filters by exploit availability, patch status, attack complexity, detection difficulty
+                **🔍 Scenario-Specific Modeling:** Dynamic attack flows based on actual threat intelligence
                 """)
+                
+                # Expandable section for full details
+                with st.expander("🔍 View Full Technical Details"):
+                    st.markdown("""
+                    **🎯 Latest Attack Intelligence:** Prioritizes most current attack patterns and threat actor campaigns from latest available sources
+                    
+                    **📊 17-Source Intelligence:** NVD CVE, GitHub Security, CISA Alerts, Google CSE (12 databases), Microsoft Security with authority weighting
+                    
+                    **🔍 Scenario-Specific Modeling:**
+                    - **Dynamic Scenario Types:** Remote Code Execution, Privilege Escalation, Data Exfiltration, Availability, Supply Chain attacks
+                    - **Threat-Matched Attack Flows:** Each scenario gets unique attack flow diagrams based on actual threat intelligence
+                    - **CVE-Based Analysis:** Reconnaissance → Initial Access → Execution → Persistence → Privilege Escalation → Defense Evasion → Impact
+                    
+                    **🏆 Enhanced Intelligence:**
+                    - **Multi-Agent Ranking:** CVE Agent (CVSS + recency), Exploit Agent (weaponization status), Authority Agent (source credibility), Relevance Agent (product matching)
+                    - **Ensemble Scoring:** Authority weight × Recency factor × CVSS normalized × Relevance score
+                    - **Priority Algorithm:** Official sources (3x weight) → Verified sources (2x) → Community (1x) with exploit availability boost
+                    - **Accuracy Enhancement:** ThreatAccuracyEnhancer filters by exploit availability, patch status, attack complexity, detection difficulty
+                    """)
             
             if st.session_state.assessment_complete:
                 st.success("✅ Assessment Complete!")
