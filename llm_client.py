@@ -15,10 +15,11 @@ logging.basicConfig(
 class LLMClient:
     """Unified LLM client supporting Gemini and Perplexity"""
     
-    def __init__(self, provider: str = "gemini", api_key: str = None):
+    def __init__(self, provider: str = "gemini", api_key: str = None, model: str = None):
         self.provider = provider.lower()
         self.api_key = api_key
         self.model_name = None
+        self.selected_model = model
         
         if self.provider == "gemini":
             self._init_gemini()
@@ -40,10 +41,14 @@ class LLMClient:
             self.model_name = "No API Key"
             return
         
+        # Default to 2.5-flash if no model specified
+        if not self.selected_model:
+            self.selected_model = "gemini-2.5-flash"
+        
         try:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
-            self.model_name = "gemini-2.5-flash"
+            self.model = genai.GenerativeModel(self.selected_model)
+            self.model_name = self.selected_model
         except Exception as e:
             self.model = None
             self.model_name = f"Error: {str(e)}"
@@ -114,7 +119,8 @@ class LLMClient:
                         
                         if gemini_key:
                             genai.configure(api_key=gemini_key)
-                            gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+                            fallback_model = self.selected_model or "gemini-2.5-flash"
+                            gemini_model = genai.GenerativeModel(fallback_model)
                             fallback_response = gemini_model.generate_content(prompt)
                             result = f"[Fallback to Gemini] {fallback_response.text}"
                             logging.info("Successfully used Gemini fallback")
@@ -240,13 +246,32 @@ def get_available_providers() -> Dict[str, Dict[str, str]]:
     """Get status of all available LLM providers"""
     providers = {}
     
-    # Check Gemini
-    gemini_client = LLMClient("gemini")
-    providers["gemini"] = gemini_client.get_status()
+    # Check Gemini models
+    gemini_models = {
+        "gemini-2.0-flash": "Gemini 2.0 Flash",
+        "gemini-2.5-flash": "Gemini 2.5 Flash", 
+        "gemini-2.5-pro": "Gemini 2.5 Pro"
+    }
+    
+    for model_id, model_name in gemini_models.items():
+        gemini_client = LLMClient("gemini", model=model_id)
+        status = gemini_client.get_status()
+        providers[f"gemini-{model_id.split('-')[-1]}"] = {
+            "status": status["status"],
+            "model": model_name,
+            "provider": "Gemini",
+            "model_id": model_id
+        }
     
     # Check Perplexity
     perplexity_client = LLMClient("perplexity")
-    providers["perplexity"] = perplexity_client.get_status()
+    status = perplexity_client.get_status()
+    providers["perplexity"] = {
+        "status": status["status"],
+        "model": "Sonar Pro",
+        "provider": "Perplexity",
+        "model_id": "sonar-pro"
+    }
     
     return providers
 
@@ -254,8 +279,8 @@ def get_available_providers() -> Dict[str, Dict[str, str]]:
 class GeminiClient(LLMClient):
     """Backward compatible Gemini client"""
     
-    def __init__(self, api_key: str = None):
-        super().__init__("gemini", api_key)
+    def __init__(self, api_key: str = None, model: str = None):
+        super().__init__("gemini", api_key, model)
 
 if __name__ == "__main__":
     # Test both providers

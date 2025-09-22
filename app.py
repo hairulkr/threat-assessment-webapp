@@ -183,7 +183,7 @@ class ThreatModelingWebApp:
             'assessment_running': False,
             'usage_tracker': DailyUsageTracker(),
             'show_methodology': False,
-            'selected_llm_provider': 'gemini'
+            'selected_llm_provider': 'gemini-flash'
         }
         
         for key, value in defaults.items():
@@ -193,9 +193,18 @@ class ThreatModelingWebApp:
     async def run_assessment(self, product_name: str):
         """Run the threat assessment with progress tracking"""
         
-        # Get selected LLM provider
-        provider = st.session_state.get('selected_llm_provider', 'gemini')
-        llm = LLMClient(provider)
+        # Get selected LLM provider and model
+        provider_key = st.session_state.get('selected_llm_provider', 'gemini-flash')
+        providers = get_available_providers()
+        
+        if provider_key in providers:
+            provider_info = providers[provider_key]
+            if provider_info['provider'] == 'Gemini':
+                llm = LLMClient('gemini', model=provider_info['model_id'])
+            else:
+                llm = LLMClient('perplexity')
+        else:
+            llm = LLMClient('gemini')
         
         if not llm.is_available():
             st.error(f"❌ {provider.title()} API key not found in secrets or environment variables")
@@ -570,10 +579,10 @@ class ThreatModelingWebApp:
             st.error("Product name must be at least 3 characters long")
             return False
             
-        # Use whitelist approach for better security
+        # Use whitelist approach for better security - allow common product name characters
         import re
-        if not re.match(r'^[a-zA-Z0-9\s\-_\.\+]+$', cleaned_name):
-            st.error("Product name contains invalid characters. Only letters, numbers, spaces, hyphens, underscores, dots, and plus signs are allowed.")
+        if not re.match(r'^[a-zA-Z0-9\s\-_\.\+\(\)\[\]\{\}\&\@\#\$\%\^\*\!\?\,\;\:\'\"]+$', cleaned_name):
+            st.error("Product name contains invalid characters. Please use standard alphanumeric characters and common symbols.")
             return False
             
         if len(cleaned_name) > 100:
@@ -717,20 +726,20 @@ class ThreatModelingWebApp:
             provider_options = []
             provider_labels = []
             
-            for provider_name, status in providers.items():
-                provider_options.append(provider_name)
-                status_icon = "✅" if "Available" in status["status"] else "❌"
-                provider_labels.append(f"{status_icon} {provider_name.title()} ({status['model']})")
+            for provider_key, provider_info in providers.items():
+                provider_options.append(provider_key)
+                status_icon = "✅" if "Available" in provider_info["status"] else "❌"
+                provider_labels.append(f"{status_icon} {provider_info['model']}")
             
             # Provider selection
             if provider_options:
                 selected_idx = 0
-                current_provider = st.session_state.get('selected_llm_provider', 'gemini')
+                current_provider = st.session_state.get('selected_llm_provider', 'gemini-flash')
                 if current_provider in provider_options:
                     selected_idx = provider_options.index(current_provider)
                 
                 selected_provider = st.selectbox(
-                    "Select AI Provider:",
+                    "Select AI Model:",
                     options=provider_options,
                     format_func=lambda x: provider_labels[provider_options.index(x)],
                     index=selected_idx,
@@ -740,18 +749,18 @@ class ThreatModelingWebApp:
                 st.session_state.selected_llm_provider = selected_provider
                 
                 # Show detailed status for selected provider
-                selected_status = providers[selected_provider]
-                if "Available" in selected_status["status"]:
-                    st.success(f"✅ {selected_status['provider']} Ready")
-                    st.info(f"**Model:** {selected_status['model']}")
+                selected_info = providers[selected_provider]
+                if "Available" in selected_info["status"]:
+                    st.success(f"✅ {selected_info['model']} Ready")
+                    st.info(f"**Provider:** {selected_info['provider']}")
                 else:
-                    st.error(f"❌ {selected_status['provider']} - {selected_status['model']}")
-                    if selected_provider == "gemini":
+                    st.error(f"❌ {selected_info['model']} - API Key Missing")
+                    if selected_info['provider'] == "Gemini":
                         st.info("Add GEMINI_API_KEY to Streamlit secrets or environment variables")
-                    elif selected_provider == "perplexity":
+                    elif selected_info['provider'] == "Perplexity":
                         st.info("Add PERPLEXITY_API_KEY to Streamlit secrets or environment variables")
             else:
-                st.error("❌ No LLM providers available")
+                st.error("❌ No AI models available")
             
             st.markdown("---")
             st.markdown("### 📋 Assessment Steps")
@@ -865,8 +874,17 @@ class ThreatModelingWebApp:
                     except:
                         api_key = os.getenv('GEMINI_API_KEY')
                     
-                    provider = st.session_state.get('selected_llm_provider', 'gemini')
-                    llm = LLMClient(provider)
+                    provider_key = st.session_state.get('selected_llm_provider', 'gemini-flash')
+                    providers = get_available_providers()
+                    
+                    if provider_key in providers:
+                        provider_info = providers[provider_key]
+                        if provider_info['provider'] == 'Gemini':
+                            llm = LLMClient('gemini', model=provider_info['model_id'])
+                        else:
+                            llm = LLMClient('perplexity')
+                    else:
+                        llm = LLMClient('gemini')
                     if llm.is_available():
                         with st.status("🤖 AI is completing your input...", expanded=False):
                             product_agent = ProductInfoAgent(llm)
