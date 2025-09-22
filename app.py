@@ -735,6 +735,10 @@ class ThreatModelingWebApp:
                 st.session_state.show_methodology = True
                 st.rerun()
             
+            st.markdown("---")
+            st.markdown("### 🔍 Debug Tools")
+            st.markdown("[Perplexity API Debug Page](debug_perplexity)")
+            
             if st.session_state.get('show_methodology', False):
                 if st.button("❌ Close Methodology", use_container_width=True):
                     st.session_state.show_methodology = False
