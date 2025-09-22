@@ -128,8 +128,9 @@ class LLMClient:
         }
         
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(self.base_url, json=data, headers=headers, timeout=30) as response:
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(self.base_url, json=data, headers=headers) as response:
                     if response.status == 200:
                         result = await response.json()
                         content = result["choices"][0]["message"]["content"]
