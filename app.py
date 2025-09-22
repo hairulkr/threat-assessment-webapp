@@ -24,7 +24,8 @@ except ImportError:
 
 # Import required modules with error handling
 try:
-    from gemini_client import GeminiClient
+    from llm_client import LLMClient, get_available_providers
+    from gemini_client import GeminiClient  # Keep for backward compatibility
     from agents.product_info_agent import ProductInfoAgent
     from agents.threat_intel_agent import ThreatIntelAgent
     from agents.threat_context_agent import ThreatContextAgent
@@ -181,7 +182,8 @@ class ThreatModelingWebApp:
             'valid_products': [],
             'assessment_running': False,
             'usage_tracker': DailyUsageTracker(),
-            'show_methodology': False
+            'show_methodology': False,
+            'selected_llm_provider': 'gemini'
         }
         
         for key, value in defaults.items():
@@ -191,17 +193,13 @@ class ThreatModelingWebApp:
     async def run_assessment(self, product_name: str):
         """Run the threat assessment with progress tracking"""
         
-        # Get API key
-        try:
-            api_key = st.secrets["GEMINI_API_KEY"]
-        except:
-            api_key = os.getenv('GEMINI_API_KEY')
+        # Get selected LLM provider
+        provider = st.session_state.get('selected_llm_provider', 'gemini')
+        llm = LLMClient(provider)
         
-        if not api_key:
-            st.error("❌ GEMINI_API_KEY not found in secrets or environment variables")
+        if not llm.is_available():
+            st.error(f"❌ {provider.title()} API key not found in secrets or environment variables")
             return None, None
-            
-        llm = GeminiClient(api_key)
         
         # Initialize agents
         agents = {
@@ -637,17 +635,50 @@ class ThreatModelingWebApp:
         with st.sidebar:
             st.header("⚙️ Configuration")
             
-            # API Key status
-            try:
-                api_key = st.secrets["GEMINI_API_KEY"]
-                st.success("✅ Gemini API Key loaded from secrets")
-            except:
-                api_key = os.getenv('GEMINI_API_KEY')
-                if api_key:
-                    st.success("✅ Gemini API Key loaded from environment")
+            # LLM Provider Selection
+            st.subheader("🤖 AI Model Selection")
+            
+            providers = get_available_providers()
+            
+            # Create provider options with status
+            provider_options = []
+            provider_labels = []
+            
+            for provider_name, status in providers.items():
+                provider_options.append(provider_name)
+                status_icon = "✅" if "Available" in status["status"] else "❌"
+                provider_labels.append(f"{status_icon} {provider_name.title()} ({status['model']})")
+            
+            # Provider selection
+            if provider_options:
+                selected_idx = 0
+                current_provider = st.session_state.get('selected_llm_provider', 'gemini')
+                if current_provider in provider_options:
+                    selected_idx = provider_options.index(current_provider)
+                
+                selected_provider = st.selectbox(
+                    "Select AI Provider:",
+                    options=provider_options,
+                    format_func=lambda x: provider_labels[provider_options.index(x)],
+                    index=selected_idx,
+                    key="llm_provider_select"
+                )
+                
+                st.session_state.selected_llm_provider = selected_provider
+                
+                # Show detailed status for selected provider
+                selected_status = providers[selected_provider]
+                if "Available" in selected_status["status"]:
+                    st.success(f"✅ {selected_status['provider']} Ready")
+                    st.info(f"**Model:** {selected_status['model']}")
                 else:
-                    st.error("❌ Gemini API Key missing")
-                    st.info("Add GEMINI_API_KEY to Streamlit secrets or environment variables")
+                    st.error(f"❌ {selected_status['provider']} - {selected_status['model']}")
+                    if selected_provider == "gemini":
+                        st.info("Add GEMINI_API_KEY to Streamlit secrets or environment variables")
+                    elif selected_provider == "perplexity":
+                        st.info("Add PERPLEXITY_API_KEY to Streamlit secrets or environment variables")
+            else:
+                st.error("❌ No LLM providers available")
             
             st.markdown("---")
             st.markdown("### 📋 Assessment Steps")
@@ -755,9 +786,10 @@ class ThreatModelingWebApp:
                     except:
                         api_key = os.getenv('GEMINI_API_KEY')
                     
-                    if api_key:
+                    provider = st.session_state.get('selected_llm_provider', 'gemini')
+                    llm = LLMClient(provider)
+                    if llm.is_available():
                         with st.status("🤖 AI is completing your input...", expanded=False):
-                            llm = GeminiClient(api_key)
                             product_agent = ProductInfoAgent(llm)
                             try:
                                 raw_suggestions = asyncio.run(product_agent.smart_product_completion(product_input))
