@@ -42,8 +42,8 @@ class LLMClient:
         
         try:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
-            self.model_name = "gemini-1.5-flash"
+            self.model = genai.GenerativeModel('gemini-1.5-flash-latest')
+            self.model_name = "gemini-1.5-flash-latest"
         except Exception as e:
             self.model = None
             self.model_name = f"Error: {str(e)}"

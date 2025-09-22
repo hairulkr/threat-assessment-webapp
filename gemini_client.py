@@ -32,7 +32,7 @@ class GeminiClient:
         
         # Configure the API key and initialize model
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.model = genai.GenerativeModel('gemini-1.5-flash-latest')
     
     async def generate(self, prompt: str, max_tokens: int = 150) -> str:
         try:
