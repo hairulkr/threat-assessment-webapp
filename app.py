@@ -183,7 +183,7 @@ class ThreatModelingWebApp:
             'assessment_running': False,
             'usage_tracker': DailyUsageTracker(),
             'show_methodology': False,
-            'selected_llm_provider': 'gemini-flash'
+            'selected_llm_provider': 'gemini-2.5-flash'
         }
         
         for key, value in defaults.items():
@@ -194,7 +194,7 @@ class ThreatModelingWebApp:
         """Run the threat assessment with progress tracking"""
         
         # Get selected LLM provider and model
-        provider_key = st.session_state.get('selected_llm_provider', 'gemini-flash')
+        provider_key = st.session_state.get('selected_llm_provider', 'gemini-2.5-flash')
         providers = get_available_providers()
         
         if provider_key in providers:
@@ -729,12 +729,13 @@ class ThreatModelingWebApp:
             for provider_key, provider_info in providers.items():
                 provider_options.append(provider_key)
                 status_icon = "✅" if "Available" in provider_info["status"] else "❌"
-                provider_labels.append(f"{status_icon} {provider_info['model']}")
+                description = provider_info.get('description', '')
+                provider_labels.append(f"{status_icon} {provider_info['model']} - {description}")
             
             # Provider selection
             if provider_options:
                 selected_idx = 0
-                current_provider = st.session_state.get('selected_llm_provider', 'gemini-flash')
+                current_provider = st.session_state.get('selected_llm_provider', 'gemini-2.5-flash')
                 if current_provider in provider_options:
                     selected_idx = provider_options.index(current_provider)
                 
@@ -874,7 +875,7 @@ class ThreatModelingWebApp:
                     except:
                         api_key = os.getenv('GEMINI_API_KEY')
                     
-                    provider_key = st.session_state.get('selected_llm_provider', 'gemini-flash')
+                    provider_key = st.session_state.get('selected_llm_provider', 'gemini-2.5-flash')
                     providers = get_available_providers()
                     
                     if provider_key in providers:

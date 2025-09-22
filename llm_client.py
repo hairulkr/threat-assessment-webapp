@@ -248,17 +248,19 @@ def get_available_providers() -> Dict[str, Dict[str, str]]:
     
     # Check Gemini models
     gemini_models = {
-        "gemini-2.0-flash": "Gemini 2.0 Flash",
-        "gemini-2.5-flash": "Gemini 2.5 Flash", 
-        "gemini-2.5-pro": "Gemini 2.5 Pro"
+        "gemini-2.0-flash": {"name": "Gemini 2.0 Flash", "desc": "Fast responses"},
+        "gemini-2.5-flash": {"name": "Gemini 2.5 Flash", "desc": "Balanced speed/quality"}
     }
     
-    for model_id, model_name in gemini_models.items():
+    for model_id, model_info in gemini_models.items():
         gemini_client = LLMClient("gemini", model=model_id)
         status = gemini_client.get_status()
-        providers[f"gemini-{model_id.split('-')[-1]}"] = {
+        # Extract version properly: gemini-2.0-flash -> 2.0-flash
+        version_part = model_id.replace('gemini-', '')
+        providers[f"gemini-{version_part}"] = {
             "status": status["status"],
-            "model": model_name,
+            "model": model_info["name"],
+            "description": model_info["desc"],
             "provider": "Gemini",
             "model_id": model_id
         }
@@ -269,6 +271,7 @@ def get_available_providers() -> Dict[str, Dict[str, str]]:
     providers["perplexity"] = {
         "status": status["status"],
         "model": "Sonar Pro",
+        "description": "Web-enhanced intelligence",
         "provider": "Perplexity",
         "model_id": "sonar-pro"
     }
