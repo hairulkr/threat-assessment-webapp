@@ -62,7 +62,7 @@ class LLMClient:
             return
         
         self.model = "perplexity-client"
-        self.model_name = "llama-3.1-sonar-small-128k-online"
+        self.model_name = "sonar-pro"
         self.base_url = "https://api.perplexity.ai/chat/completions"
     
     def is_available(self) -> bool:
@@ -154,7 +154,7 @@ class LLMClient:
             prompt = prompt[:2000] + "... [truncated for faster response]"
         
         data = {
-            "model": "llama-3.1-sonar-small-128k-online",  # Updated to current model
+            "model": "sonar-pro",
             "messages": [
                 {
                     "role": "user",
@@ -162,17 +162,7 @@ class LLMClient:
                 }
             ],
             "max_tokens": min(max_tokens, 1000),
-            "temperature": 0.2,
-            "top_p": 0.9,
-            "return_citations": True,
-            "search_domain_filter": ["perplexity.ai"],
-            "return_images": False,
-            "return_related_questions": False,
-            "search_recency_filter": "month",
-            "top_k": 0,
-            "stream": False,
-            "presence_penalty": 0,
-            "frequency_penalty": 1
+            "temperature": 0.2
         }
         
         def make_request():
