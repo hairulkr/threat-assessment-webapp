@@ -136,6 +136,7 @@ class LLMClient:
         
         try:
             response = requests.post(self.base_url, json=data, headers=headers, timeout=30)
+            response.raise_for_status()  # This will raise the 400 error
             
             if response.status_code == 200:
                 result = response.json()
@@ -162,15 +163,30 @@ class LLMClient:
                     error_msg = error_text
                 return f"Perplexity API error: {response.status_code} - {error_msg}"
                 
+        except requests.exceptions.HTTPError as e:
+            # This catches the 400 Bad Request error
+            debug_info = f"""
+🔍 PERPLEXITY DEBUG INFO:
+- HTTP Error: {str(e)}
+- Status Code: {response.status_code}
+- URL: {self.base_url}
+- Headers: {headers}
+- Request Data: {data}
+- Response Text: {response.text}
+            """
+            return debug_info
         except Exception as e:
-            # Debug only on exception
-            st.write(f"🔍 DEBUG: Perplexity Exception - {str(e)}")
-            st.write(f"🔍 DEBUG: URL: {self.base_url}")
-            st.write(f"🔍 DEBUG: Headers: {headers}")
-            st.write(f"🔍 DEBUG: Data: {data}")
+            # Other exceptions
             import traceback
-            st.write(f"🔍 DEBUG: Traceback: {traceback.format_exc()}")
-            return f"Perplexity API error: {str(e)}"
+            debug_info = f"""
+🔍 PERPLEXITY DEBUG INFO:
+- Exception: {str(e)}
+- URL: {self.base_url}
+- Headers: {headers}
+- Data: {data}
+- Traceback: {traceback.format_exc()}
+            """
+            return debug_info
 
 def get_available_providers() -> Dict[str, Dict[str, str]]:
     """Get status of all available LLM providers"""
