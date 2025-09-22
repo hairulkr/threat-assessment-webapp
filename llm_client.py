@@ -96,6 +96,10 @@ class LLMClient:
                 response = self.model.generate_content(prompt)
                 result = response.text
             elif self.provider == "perplexity":
+                # Show timeout warning for Perplexity
+                import streamlit as st
+                if hasattr(st, 'info'):
+                    st.info("⏳ Perplexity API may take up to 90 seconds for complex queries...")
                 result = await self._call_perplexity(prompt, max_tokens)
             else:
                 result = "Error: Unsupported provider"
@@ -109,8 +113,9 @@ class LLMClient:
             return error_msg
     
     async def _call_perplexity(self, prompt: str, max_tokens: int) -> str:
-        """Call Perplexity API"""
+        """Call Perplexity API with retry logic"""
         import requests
+        import time
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -127,29 +132,46 @@ class LLMClient:
             ]
         }
         
-        try:
-            response = requests.post(self.base_url, json=data, headers=headers, timeout=30)
-            
-            if response.status_code == 200:
-                result = response.json()
-                content = result["choices"][0]["message"]["content"]
+        # Retry logic with exponential backoff
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                timeout = 60 if attempt == 0 else 90  # Increase timeout on retries
+                response = requests.post(self.base_url, json=data, headers=headers, timeout=timeout)
                 
-                # Add citations if available
-                if "citations" in result and result["citations"]:
-                    citations = "\n\nSources:\n" + "\n".join([f"- {cite}" for cite in result["citations"][:3]])
-                    content += citations
+                if response.status_code == 200:
+                    result = response.json()
+                    content = result["choices"][0]["message"]["content"]
+                    
+                    # Add citations if available
+                    if "citations" in result and result["citations"]:
+                        citations = "\n\nSources:\n" + "\n".join([f"- {cite}" for cite in result["citations"][:3]])
+                        content += citations
+                    
+                    return content
+                else:
+                    try:
+                        error_json = response.json()
+                        error_msg = error_json.get('error', {}).get('message', response.text)
+                    except:
+                        error_msg = response.text
+                    
+                    if attempt == max_retries - 1:
+                        return f"Perplexity API error: {response.status_code} - {error_msg}"
+                    
+            except requests.exceptions.Timeout:
+                if attempt == max_retries - 1:
+                    return "Perplexity API timeout - please try again or switch to Gemini"
+                time.sleep(2 ** attempt)  # Exponential backoff
+                continue
                 
-                return content
-            else:
-                try:
-                    error_json = response.json()
-                    error_msg = error_json.get('error', {}).get('message', response.text)
-                except:
-                    error_msg = response.text
-                return f"Perplexity API error: {response.status_code} - {error_msg}"
-                
-        except Exception as e:
-            return f"Perplexity API exception: {str(e)}"
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    return f"Perplexity API exception: {str(e)}"
+                time.sleep(2 ** attempt)
+                continue
+        
+        return "Perplexity API failed after retries"
 
 def get_available_providers() -> Dict[str, Dict[str, str]]:
     """Get status of all available LLM providers"""
