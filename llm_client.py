@@ -96,7 +96,9 @@ class LLMClient:
                 response = self.model.generate_content(prompt)
                 result = response.text
             elif self.provider == "perplexity":
+                st.write("🔍 DEBUG: About to call Perplexity API...")
                 result = await self._call_perplexity(prompt, max_tokens)
+                st.write(f"🔍 DEBUG: Perplexity result: {result[:100]}...")
             else:
                 result = "Error: Unsupported provider"
             
@@ -105,6 +107,10 @@ class LLMClient:
             
         except Exception as e:
             error_msg = f"Error generating response with {self.provider}: {str(e)}"
+            if self.provider == "perplexity":
+                st.write(f"🔍 DEBUG: Exception in generate(): {str(e)}")
+                import traceback
+                st.write(f"🔍 DEBUG: Full traceback: {traceback.format_exc()}")
             logging.error(error_msg)
             return error_msg
     
