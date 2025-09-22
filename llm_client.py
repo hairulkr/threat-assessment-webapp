@@ -96,9 +96,7 @@ class LLMClient:
                 response = self.model.generate_content(prompt)
                 result = response.text
             elif self.provider == "perplexity":
-                st.write("🔍 DEBUG: About to call Perplexity API...")
                 result = await self._call_perplexity(prompt, max_tokens)
-                st.write(f"🔍 DEBUG: Perplexity result: {result[:100]}...")
             else:
                 result = "Error: Unsupported provider"
             
@@ -107,21 +105,12 @@ class LLMClient:
             
         except Exception as e:
             error_msg = f"Error generating response with {self.provider}: {str(e)}"
-            if self.provider == "perplexity":
-                st.write(f"🔍 DEBUG: Exception in generate(): {str(e)}")
-                import traceback
-                st.write(f"🔍 DEBUG: Full traceback: {traceback.format_exc()}")
             logging.error(error_msg)
             return error_msg
     
     async def _call_perplexity(self, prompt: str, max_tokens: int) -> str:
-        """Call Perplexity API with debug logging"""
-        # Test if this function is even being called
-        st.error("🔍 PERPLEXITY FUNCTION CALLED - Debug checkpoint reached!")
-        return "🔍 PERPLEXITY FUNCTION CALLED - API key available, attempting connection..."
-        
+        """Call Perplexity API"""
         import requests
-        import streamlit as st
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -152,44 +141,15 @@ class LLMClient:
                 
                 return content
             else:
-                # Debug only on error
-                error_text = response.text
-                st.write(f"🔍 DEBUG: Perplexity API Error - Status: {response.status_code}")
-                st.write(f"🔍 DEBUG: URL: {self.base_url}")
-                st.write(f"🔍 DEBUG: Headers: {headers}")
-                st.write(f"🔍 DEBUG: Data: {data}")
-                st.write(f"🔍 DEBUG: Error response: {error_text}")
                 try:
                     error_json = response.json()
-                    error_msg = error_json.get('error', {}).get('message', error_text)
+                    error_msg = error_json.get('error', {}).get('message', response.text)
                 except:
-                    error_msg = error_text
+                    error_msg = response.text
                 return f"Perplexity API error: {response.status_code} - {error_msg}"
                 
-        except requests.exceptions.HTTPError as e:
-            # This catches the 400 Bad Request error
-            debug_info = f"""
-🔍 PERPLEXITY DEBUG INFO:
-- HTTP Error: {str(e)}
-- Status Code: {response.status_code}
-- URL: {self.base_url}
-- Headers: {headers}
-- Request Data: {data}
-- Response Text: {response.text}
-            """
-            return debug_info
         except Exception as e:
-            # Other exceptions
-            import traceback
-            debug_info = f"""
-🔍 PERPLEXITY DEBUG INFO:
-- Exception: {str(e)}
-- URL: {self.base_url}
-- Headers: {headers}
-- Data: {data}
-- Traceback: {traceback.format_exc()}
-            """
-            return debug_info
+            return f"Perplexity API exception: {str(e)}"
 
 def get_available_providers() -> Dict[str, Dict[str, str]]:
     """Get status of all available LLM providers"""
