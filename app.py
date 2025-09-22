@@ -798,6 +798,12 @@ class ThreatModelingWebApp:
                 st.session_state.show_methodology = True
                 st.rerun()
             
+            st.markdown("---")
+            st.markdown("### 🔍 Debug Tools")
+            if st.button("🔍 Test Perplexity", use_container_width=True):
+                st.session_state.show_debug = True
+                st.rerun()
+            
 
             
             if st.session_state.get('show_methodology', False):
@@ -826,6 +832,82 @@ class ThreatModelingWebApp:
                 st.error("Methodology file not found")
             
             return  # Exit early to show only methodology
+        
+        # Check if debug should be displayed
+        if st.session_state.get('show_debug', False):
+            if st.button("← Back to Assessment", type="secondary"):
+                st.session_state.show_debug = False
+                st.rerun()
+            
+            st.header("🔍 Perplexity API Test")
+            
+            # API Key input
+            api_key = st.text_input("Perplexity API Key", type="password", 
+                                   value=os.getenv('PERPLEXITY_API_KEY', ''))
+            
+            if st.button("Test Connection"):
+                if not api_key:
+                    st.error("Please enter your Perplexity API key")
+                else:
+                    import requests
+                    
+                    with st.spinner("Testing Perplexity API..."):
+                        
+                        # Test new model
+                        st.subheader("Test 1: New Model (llama-3.1-sonar-small-128k-online)")
+                        try:
+                            data = {
+                                "model": "llama-3.1-sonar-small-128k-online",
+                                "messages": [{"role": "user", "content": "Hello, test message"}]
+                            }
+                            headers = {
+                                "Authorization": f"Bearer {api_key}",
+                                "Content-Type": "application/json"
+                            }
+                            
+                            response = requests.post(
+                                "https://api.perplexity.ai/chat/completions", 
+                                json=data, headers=headers, timeout=30
+                            )
+                            
+                            st.write(f"Status Code: {response.status_code}")
+                            if response.status_code == 200:
+                                result = response.json()
+                                content = result["choices"][0]["message"]["content"]
+                                st.success("✅ New model works!")
+                                st.write("Response:", content[:200] + "...")
+                            else:
+                                st.error(f"❌ New model failed: {response.status_code}")
+                                st.write("Error:", response.text)
+                        except Exception as e:
+                            st.error(f"❌ New model exception: {str(e)}")
+                        
+                        # Test original model
+                        st.subheader("Test 2: Original Model (sonar-pro)")
+                        try:
+                            data = {
+                                "model": "sonar-pro",
+                                "messages": [{"role": "user", "content": "Hello, test message"}]
+                            }
+                            
+                            response = requests.post(
+                                "https://api.perplexity.ai/chat/completions", 
+                                json=data, headers=headers, timeout=30
+                            )
+                            
+                            st.write(f"Status Code: {response.status_code}")
+                            if response.status_code == 200:
+                                result = response.json()
+                                content = result["choices"][0]["message"]["content"]
+                                st.success("✅ Original model works!")
+                                st.write("Response:", content[:200] + "...")
+                            else:
+                                st.error(f"❌ Original model failed: {response.status_code}")
+                                st.write("Error:", response.text)
+                        except Exception as e:
+                            st.error(f"❌ Original model exception: {str(e)}")
+            
+            return  # Exit early to show only debug
         
         
         # Main content area
