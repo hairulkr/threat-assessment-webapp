@@ -116,6 +116,9 @@ class LLMClient:
     
     async def _call_perplexity(self, prompt: str, max_tokens: int) -> str:
         """Call Perplexity API with debug logging"""
+        # Test if this function is even being called
+        return "🔍 PERPLEXITY FUNCTION CALLED - API key available, attempting connection..."
+        
         import requests
         import streamlit as st
         
