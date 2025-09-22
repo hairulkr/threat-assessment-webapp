@@ -158,12 +158,16 @@ class ReportAgent:
     
     def create_fallback_diagram(self, scenario_id: str, scenario_title: str, product_name: str) -> str:
         """Create a simple fallback diagram"""
+        import html
+        safe_product_name = html.escape(product_name[:30])
+        safe_scenario_id = html.escape(str(scenario_id))
+        
         return f"""
         <div class="diagram-container">
-            <h3>🎯 Attack Flow - Scenario {scenario_id}</h3>
+            <h3>🎯 Attack Flow - Scenario {safe_scenario_id}</h3>
             <div class="mermaid">
                 graph TD
-                    A["Target: {product_name[:30]}"] --> B["Initial Access"]
+                    A["Target: {safe_product_name}"] --> B["Initial Access"]
                     B --> C["Execution"]
                     C --> D["Persistence"]
                     D --> E["Impact"]
@@ -301,9 +305,13 @@ class ReportAgent:
     
     def save_html_report(self, report_content: str, product_name: str) -> str:
         """Save report as professional HTML webpage"""
+        import html
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_product_name = product_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
         filename = f"{safe_product_name}_ThreatModel_{timestamp}.html"
+        
+        # Escape product name for HTML title
+        escaped_product_name = html.escape(product_name)
         filepath = os.path.join(self.reports_dir, filename)
         
         try:
@@ -313,7 +321,7 @@ class ReportAgent:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Threat Modeling Assessment - {product_name}</title>
+    <title>Threat Modeling Assessment - {escaped_product_name}</title>
     <style>
         body {{
             font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;

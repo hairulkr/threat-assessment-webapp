@@ -40,7 +40,7 @@ class CVERankingAgent:
             days_old = (datetime.now() - pub_date.replace(tzinfo=None)).days
             # CVEs decay over 2 years instead of 1
             return max(0.3, 1.0 - (days_old / 730))
-        except:
+        except (ValueError, TypeError, AttributeError):
             return 0.7
 
 class ExploitRankingAgent:

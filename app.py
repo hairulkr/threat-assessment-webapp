@@ -447,6 +447,11 @@ class ThreatModelingWebApp:
     
     def create_pdf_download(self, content: str, filename: str):
         """Create PDF download with same format as threat assessment report"""
+        import html
+        # Escape content to prevent XSS
+        safe_content = html.escape(content) if isinstance(content, str) else content
+        safe_filename = html.escape(filename)
+        
         # Create full HTML with same styling as the report display
         full_html = f"""
         <!DOCTYPE html>
@@ -518,7 +523,7 @@ class ThreatModelingWebApp:
         </head>
         <body>
             <div class="report-container">
-                {content}
+                {safe_content}
             </div>
             
             <script>
@@ -565,9 +570,10 @@ class ThreatModelingWebApp:
             st.error("Product name must be at least 3 characters long")
             return False
             
-        invalid_chars = ['<', '>', ';', '|', '&', '$', '#']
-        if any(char in cleaned_name for char in invalid_chars):
-            st.error("Product name contains invalid characters")
+        # Use whitelist approach for better security
+        import re
+        if not re.match(r'^[a-zA-Z0-9\s\-_\.\+]+$', cleaned_name):
+            st.error("Product name contains invalid characters. Only letters, numbers, spaces, hyphens, underscores, dots, and plus signs are allowed.")
             return False
             
         if len(cleaned_name) > 100:
@@ -660,7 +666,11 @@ class ThreatModelingWebApp:
                         try:
                             app_password = st.secrets["APP_PASSWORD"]
                         except:
-                            app_password = os.getenv('APP_PASSWORD', 'demo123')
+                            app_password = os.getenv('APP_PASSWORD')
+                        
+                        if not app_password:
+                            st.error("🔒 APP_PASSWORD not configured. Contact administrator.")
+                            st.stop()
                         
                         if password == app_password:
                             st.session_state.authenticated = True

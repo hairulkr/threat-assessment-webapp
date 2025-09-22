@@ -32,7 +32,7 @@ class LLMClient:
         if not self.api_key:
             try:
                 self.api_key = st.secrets["GEMINI_API_KEY"]
-            except:
+            except (KeyError, AttributeError):
                 self.api_key = os.getenv('GEMINI_API_KEY')
         
         if not self.api_key:
@@ -53,7 +53,7 @@ class LLMClient:
         if not self.api_key:
             try:
                 self.api_key = st.secrets["PERPLEXITY_API_KEY"]
-            except:
+            except (KeyError, AttributeError):
                 self.api_key = os.getenv('PERPLEXITY_API_KEY')
         
         if not self.api_key:
@@ -109,7 +109,7 @@ class LLMClient:
                         gemini_key = None
                         try:
                             gemini_key = st.secrets["GEMINI_API_KEY"]
-                        except:
+                        except (KeyError, AttributeError):
                             gemini_key = os.getenv('GEMINI_API_KEY')
                         
                         if gemini_key:
@@ -186,11 +186,29 @@ class LLMClient:
                 
                 if response.status_code == 200:
                     result = response.json()
-                    content = result["choices"][0]["message"]["content"]
+                    
+                    # Validate response structure
+                    if not isinstance(result, dict):
+                        raise ValueError("Invalid API response format: not a dictionary")
+                    
+                    if "choices" not in result or not isinstance(result["choices"], list) or len(result["choices"]) == 0:
+                        raise ValueError("Invalid API response: missing or empty choices")
+                    
+                    choice = result["choices"][0]
+                    if not isinstance(choice, dict) or "message" not in choice:
+                        raise ValueError("Invalid API response: missing message in choice")
+                    
+                    message = choice["message"]
+                    if not isinstance(message, dict) or "content" not in message:
+                        raise ValueError("Invalid API response: missing content in message")
+                    
+                    content = message["content"]
+                    if not isinstance(content, str):
+                        raise ValueError("Invalid API response: content is not a string")
                     
                     # Add citations if available
-                    if "citations" in result and result["citations"]:
-                        citations = "\n\nSources:\n" + "\n".join([f"- {cite}" for cite in result["citations"][:3]])
+                    if "citations" in result and isinstance(result["citations"], list):
+                        citations = "\n\nSources:\n" + "\n".join([f"- {cite}" for cite in result["citations"][:3] if isinstance(cite, str)])
                         content += citations
                     
                     logging.info(f"Perplexity success: {len(content)} chars returned")

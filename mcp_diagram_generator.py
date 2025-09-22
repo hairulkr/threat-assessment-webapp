@@ -25,9 +25,19 @@ class MCPDiagramGenerator:
         diagrams_dir = "reports/diagrams"
         os.makedirs(diagrams_dir, exist_ok=True)
 
-        # File paths
-        mermaid_file = os.path.join(diagrams_dir, f"scenario_{scenario_id}.mmd")
-        image_file = os.path.join(diagrams_dir, f"scenario_{scenario_id}.png")
+        # Validate scenario_id to prevent path traversal
+        safe_scenario_id = re.sub(r'[^a-zA-Z0-9_-]', '', str(scenario_id))
+        if not safe_scenario_id:
+            safe_scenario_id = 'default'
+        
+        # File paths with validation
+        mermaid_file = os.path.abspath(os.path.join(diagrams_dir, f"scenario_{safe_scenario_id}.mmd"))
+        image_file = os.path.abspath(os.path.join(diagrams_dir, f"scenario_{safe_scenario_id}.png"))
+        
+        # Ensure files are within the diagrams directory
+        safe_diagrams_dir = os.path.abspath(diagrams_dir)
+        if not mermaid_file.startswith(safe_diagrams_dir) or not image_file.startswith(safe_diagrams_dir):
+            raise ValueError("Path traversal attempt detected")
 
         # Write the Mermaid code to a file
         with open(mermaid_file, "w") as file:
@@ -47,8 +57,9 @@ class MCPDiagramGenerator:
     async def insert_scenario_diagrams(self, threats: List[Dict[str, Any]], product_name: str, report_content: str) -> str:
         """Insert attack flow diagrams after each attack scenario"""
         
-        print("🔗 Connecting to Mermaid MCP server...")
-        print("🎯 Generating diagrams for each attack scenario...")
+        import logging
+        logging.info("Connecting to Mermaid MCP server...")
+        logging.info("Generating diagrams for each attack scenario...")
         
         # Multiple patterns to find scenarios - more robust approach
         patterns = [
@@ -61,11 +72,11 @@ class MCPDiagramGenerator:
         placeholder_pattern = r'\[DIAGRAM_PLACEHOLDER_SCENARIO_([A-Z])\]'
         placeholders = re.findall(placeholder_pattern, report_content)
         
-        print(f"Found placeholders for scenarios: {placeholders}")
+        logging.info(f"Found placeholders for scenarios: {placeholders}")
         
         # Generate diagrams for each found placeholder
         for scenario_id in placeholders:
-            print(f"🖼️ Generating diagram for Scenario {scenario_id}...")
+            logging.info(f"Generating diagram for Scenario {scenario_id}...")
             
             # Find the scenario text using multiple patterns
             scenario_text = ""
@@ -86,14 +97,14 @@ class MCPDiagramGenerator:
                     start = max(0, placeholder_pos - 1000)
                     scenario_text = report_content[start:placeholder_pos]
             
-            print(f"Scenario Text Length: {len(scenario_text)}")
+            logging.debug(f"Scenario Text Length: {len(scenario_text)}")
             
             # Generate diagram for this specific scenario
             try:
                 diagram_html = await self.generate_scenario_diagram(scenario_text, scenario_id, threats, product_name)
-                print(f"✅ Generated diagram HTML for Scenario {scenario_id}")
+                logging.info(f"Generated diagram HTML for Scenario {scenario_id}")
             except Exception as e:
-                print(f"⚠️ Diagram generation failed for Scenario {scenario_id}: {e}")
+                logging.error(f"Diagram generation failed for Scenario {scenario_id}: {e}")
                 diagram_html = f"<div class='diagram-error'>Diagram generation failed for Scenario {scenario_id}</div>"
 
             # Replace placeholder with diagram
@@ -108,7 +119,7 @@ class MCPDiagramGenerator:
             # Extract actual attack steps from scenario content
             phases = await self.extract_actual_attack_phases(scenario_text, scenario_id, threats)
             
-            print(f"Extracted {len(phases)} actual phases for Scenario {scenario_id}: {[p[0] for p in phases]}")
+            logging.info(f"Extracted {len(phases)} actual phases for Scenario {scenario_id}: {[p[0] for p in phases]}")
 
             # Generate threat intelligence-specific Mermaid diagram
             mermaid_code = self.generate_threat_specific_attack_flow(phases, scenario_id, product_name, threats)
@@ -116,7 +127,7 @@ class MCPDiagramGenerator:
             return self.generate_mermaid_html(mermaid_code, f"🎯 Attack Flow - Scenario {scenario_id}")
 
         except Exception as e:
-            print(f"Scenario {scenario_id} diagram failed: {e}")
+            logging.error(f"Scenario {scenario_id} diagram failed: {e}")
             return self.generate_mermaid_html(
                 f"graph LR\n    A[Scenario {scenario_id} Attack Flow]\n    A --> B[Diagram Generation Failed]", 
                 f"Attack Flow - Scenario {scenario_id}"
@@ -176,7 +187,7 @@ class MCPDiagramGenerator:
             return phases[:7]  # Limit to 7 phases max
             
         except Exception as e:
-            print(f"LLM phase extraction failed: {e}")
+            logging.error(f"LLM phase extraction failed: {e}")
             return self.extract_phases_from_text(scenario_text)
     
     def extract_phases_from_text(self, scenario_text: str) -> List[tuple]:
@@ -219,7 +230,7 @@ class MCPDiagramGenerator:
     
     async def __aenter__(self):
         """Async context manager entry"""
-        print("✅ Diagram generator ready")
+        logging.info("Diagram generator ready")
         return self
     
     def create_scenario_specific_attack_flow(self, scenario_text: str, scenario_id: str, threats: List[Dict[str, Any]]) -> List[tuple]:
