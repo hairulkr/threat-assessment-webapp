@@ -9,4 +9,3 @@ weasyprint>=60.0  # For high-quality PDF generation with HTML/CSS support
 cffi>=1.15.0      # Required by WeasyPrint
 cairocffi>=1.6.0  # Required by WeasyPrint
 tinycss2>=1.2.0   # Required by WeasyPrint
-requests>=2.31.0  # For Perplexity API calls

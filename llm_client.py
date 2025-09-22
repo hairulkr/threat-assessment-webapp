@@ -1,6 +1,6 @@
 import os
 import google.generativeai as genai
-import requests
+import aiohttp
 import streamlit as st
 import logging
 from typing import Optional, Dict, Any
@@ -110,6 +110,8 @@ class LLMClient:
     
     async def _call_perplexity(self, prompt: str, max_tokens: int) -> str:
         """Call Perplexity API"""
+        import aiohttp
+        
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -126,23 +128,24 @@ class LLMClient:
         }
         
         try:
-            response = requests.post(self.base_url, json=data, headers=headers, timeout=30)
-            response.raise_for_status()
-            
-            result = response.json()
-            content = result["choices"][0]["message"]["content"]
-            
-            # Add citations if available
-            if "citations" in result and result["citations"]:
-                citations = "\n\nSources:\n" + "\n".join([f"- {cite}" for cite in result["citations"][:3]])
-                content += citations
-            
-            return content
-            
-        except requests.exceptions.RequestException as e:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.base_url, json=data, headers=headers, timeout=30) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        content = result["choices"][0]["message"]["content"]
+                        
+                        # Add citations if available
+                        if "citations" in result and result["citations"]:
+                            citations = "\n\nSources:\n" + "\n".join([f"- {cite}" for cite in result["citations"][:3]])
+                            content += citations
+                        
+                        return content
+                    else:
+                        error_text = await response.text()
+                        return f"Perplexity API error: {response.status} - {error_text}"
+                        
+        except Exception as e:
             return f"Perplexity API error: {str(e)}"
-        except KeyError as e:
-            return f"Perplexity response parsing error: {str(e)}"
 
 def get_available_providers() -> Dict[str, Dict[str, str]]:
     """Get status of all available LLM providers"""
