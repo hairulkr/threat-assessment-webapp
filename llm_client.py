@@ -109,8 +109,9 @@ class LLMClient:
             return error_msg
     
     async def _call_perplexity(self, prompt: str, max_tokens: int) -> str:
-        """Call Perplexity API - using requests like the working test script"""
+        """Call Perplexity API with debug logging"""
         import requests
+        import streamlit as st
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -127,8 +128,16 @@ class LLMClient:
             ]
         }
         
+        # Debug logging
+        print(f"DEBUG: Perplexity API call - URL: {self.base_url}")
+        print(f"DEBUG: Headers: {headers}")
+        print(f"DEBUG: Data: {data}")
+        
         try:
             response = requests.post(self.base_url, json=data, headers=headers, timeout=30)
+            
+            print(f"DEBUG: Response status: {response.status_code}")
+            print(f"DEBUG: Response headers: {dict(response.headers)}")
             
             if response.status_code == 200:
                 result = response.json()
@@ -139,12 +148,23 @@ class LLMClient:
                     citations = "\n\nSources:\n" + "\n".join([f"- {cite}" for cite in result["citations"][:3]])
                     content += citations
                 
+                print(f"DEBUG: Success - content length: {len(content)}")
                 return content
             else:
-                error_msg = response.json().get('error', {}).get('message', response.text)
+                error_text = response.text
+                print(f"DEBUG: Error response: {error_text}")
+                try:
+                    error_json = response.json()
+                    error_msg = error_json.get('error', {}).get('message', error_text)
+                except:
+                    error_msg = error_text
                 return f"Perplexity API error: {response.status_code} - {error_msg}"
                 
         except Exception as e:
+            print(f"DEBUG: Exception in Perplexity call: {str(e)}")
+            print(f"DEBUG: Exception type: {type(e)}")
+            import traceback
+            print(f"DEBUG: Traceback: {traceback.format_exc()}")
             return f"Perplexity API error: {str(e)}"
 
 def get_available_providers() -> Dict[str, Dict[str, str]]:
