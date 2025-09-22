@@ -62,7 +62,7 @@ class LLMClient:
             return
         
         self.model = "perplexity-client"
-        self.model_name = "llama-3.1-sonar-large-128k-online"
+        self.model_name = "sonar-pro"
         self.base_url = "https://api.perplexity.ai/chat/completions"
     
     def is_available(self) -> bool:
@@ -116,21 +116,13 @@ class LLMClient:
         }
         
         data = {
-            "model": self.model_name,
+            "model": "sonar-pro",
             "messages": [
-                {
-                    "role": "system",
-                    "content": "You are a cybersecurity expert providing threat intelligence analysis."
-                },
                 {
                     "role": "user", 
                     "content": prompt
                 }
-            ],
-            "max_tokens": max_tokens,
-            "temperature": 0.2,
-            "top_p": 0.9,
-            "stream": False
+            ]
         }
         
         try:
