@@ -1,8 +1,8 @@
 import requests
 import json
 
-def test_perplexity_api(api_key):
-    """Test Perplexity API with correct model names"""
+def test_sonar_pro(api_key):
+    """Test sonar-pro model and show full output"""
     
     url = "https://api.perplexity.ai/chat/completions"
     
@@ -11,52 +11,46 @@ def test_perplexity_api(api_key):
         "Content-Type": "application/json"
     }
     
-    # Test current Perplexity model names (2024)
-    models_to_test = [
-        "llama-3.1-sonar-small-128k-online",
-        "llama-3.1-sonar-large-128k-online",
-        "llama-3.1-sonar-huge-128k-online",
-        "llama-3.1-8b-instruct",
-        "llama-3.1-70b-instruct",
-        "sonar-pro",
-        "sonar"
-    ]
+    data = {
+        "model": "sonar-pro",
+        "messages": [
+            {
+                "role": "user",
+                "content": "What are the latest cybersecurity threats in 2024?"
+            }
+        ]
+    }
     
-    for model in models_to_test:
-        print(f"\n--- Testing model: {model} ---")
-        data = {
-            "model": model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "What is cybersecurity?"
-                }
-            ]
-        }
+    print("Testing sonar-pro model...")
+    print(f"URL: {url}")
+    print(f"Headers: {headers}")
+    print(f"Data: {json.dumps(data, indent=2)}")
+    
+    try:
+        response = requests.post(url, json=data, headers=headers, timeout=30)
         
-        try:
-            response = requests.post(url, json=data, headers=headers, timeout=30)
+        print(f"\nStatus Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            print("\n✅ SUCCESS!")
+            print(f"\nFull Response:")
+            print(json.dumps(result, indent=2))
             
-            if response.status_code == 200:
-                result = response.json()
-                print(f"✅ SUCCESS with {model}!")
-                print(f"Response: {result['choices'][0]['message']['content'][:100]}...")
-                return model  # Return working model
-            else:
-                error_msg = response.json().get('error', {}).get('message', response.text)
-                print(f"❌ Failed: {error_msg}")
-                
-        except Exception as e:
-            print(f"❌ Exception: {e}")
-    
-    return None  # No working model found
+            content = result['choices'][0]['message']['content']
+            print(f"\n📝 Content Only:")
+            print(content)
+            
+            return True
+        else:
+            print("\n❌ FAILED!")
+            print(f"Error Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"\n❌ Exception: {e}")
+        return False
 
 if __name__ == "__main__":
-    # Test with your API key
     api_key = input("Enter your Perplexity API key: ").strip()
-    working_model = test_perplexity_api(api_key)
-    
-    if working_model:
-        print(f"\n🎉 Working model found: {working_model}")
-    else:
-        print("\n❌ No working models found")
+    test_sonar_pro(api_key)
