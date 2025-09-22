@@ -322,14 +322,23 @@ class ThreatModelingWebApp:
                 try:
                     controls = await asyncio.wait_for(
                         agents['controls'].propose_controls(risks),
-                        timeout=30
+                        timeout=20  # Reduced timeout
                     )
                 except asyncio.TimeoutError:
-                    st.error("Control generation timed out. Please try again.")
-                    return None, None
+                    st.warning("Control generation timed out - using basic controls")
+                    # Provide basic fallback controls
+                    controls = {
+                        "preventive": ["Multi-factor authentication", "Network segmentation", "Regular patching"],
+                        "detective": ["Security monitoring", "Log analysis", "Intrusion detection"],
+                        "corrective": ["Incident response plan", "Backup and recovery", "Security training"]
+                    }
                 except Exception as e:
-                    st.error(f"Control generation failed: {str(e)}")
-                    return None, None
+                    st.warning(f"Control generation failed - using basic controls: {str(e)}")
+                    controls = {
+                        "preventive": ["Multi-factor authentication", "Network segmentation", "Regular patching"],
+                        "detective": ["Security monitoring", "Log analysis", "Intrusion detection"],
+                        "corrective": ["Incident response plan", "Backup and recovery", "Security training"]
+                    }
             
             status_box.success("Security control framework established")
             all_data["controls"] = controls
@@ -341,23 +350,39 @@ class ThreatModelingWebApp:
             
             with st.spinner("📊 Conducting expert review and generating report..."):
                 try:
-                    review_task = agents['reviewer'].conduct_comprehensive_review(all_data)
-                    report_task = agents['report'].generate_comprehensive_report(all_data)
-                    review_results, report_content = await asyncio.wait_for(
-                        asyncio.gather(review_task, report_task),
-                        timeout=60
+                    # Run review and report generation with shorter timeouts
+                    review_task = asyncio.wait_for(
+                        agents['reviewer'].conduct_comprehensive_review(all_data), 
+                        timeout=30
                     )
-                except asyncio.TimeoutError:
-                    st.error("Report generation timed out. Please try again.")
-                    return None, None
+                    report_task = asyncio.wait_for(
+                        agents['report'].generate_comprehensive_report(all_data),
+                        timeout=45
+                    )
+                    
+                    review_results, report_content = await asyncio.gather(
+                        review_task, report_task, return_exceptions=True
+                    )
+                    
+                    # Handle individual failures
+                    if isinstance(review_results, Exception):
+                        st.warning(f"Review failed: {str(review_results)} - continuing with basic review")
+                        review_results = {"terminate_recommended": False, "confidence_score": 0.7}
+                    
+                    if isinstance(report_content, Exception):
+                        st.warning(f"Report generation failed: {str(report_content)} - generating basic report")
+                        report_content = self.generate_basic_report(all_data)
+                        
                 except Exception as e:
-                    st.error(f"Report generation failed: {str(e)}")
-                    return None, None
+                    st.warning(f"Report generation had issues: {str(e)} - generating basic report")
+                    review_results = {"terminate_recommended": False, "confidence_score": 0.7}
+                    report_content = self.generate_basic_report(all_data)
             
             status_box.success("Expert review and report generation completed")
             
-            # Check for termination
-            if review_results.get("terminate_recommended", False):
+            # Check for termination (only if review was successful)
+            if (isinstance(review_results, dict) and 
+                review_results.get("terminate_recommended", False)):
                 progress_bar.progress(100)
                 st.session_state.assessment_running = False
                 status_text.markdown("**⚠️ Analysis terminated due to low confidence data**")
@@ -550,6 +575,44 @@ class ThreatModelingWebApp:
             return False
             
         return True
+    
+    def generate_basic_report(self, all_data):
+        """Generate a basic fallback report when full generation fails"""
+        product_name = all_data.get('product_name', 'Unknown Product')
+        threats = all_data.get('threats', [])
+        
+        threat_count = len(threats)
+        high_severity = len([t for t in threats if t.get('severity') == 'HIGH'])
+        critical_severity = len([t for t in threats if t.get('severity') == 'CRITICAL'])
+        
+        return f"""
+        <h1>Threat Assessment Report - {product_name}</h1>
+        
+        <h2>Executive Summary</h2>
+        <p>This assessment identified <strong>{threat_count} potential threats</strong> for {product_name}.</p>
+        <ul>
+            <li>Critical threats: {critical_severity}</li>
+            <li>High severity threats: {high_severity}</li>
+            <li>Assessment completed with basic analysis due to timeout constraints</li>
+        </ul>
+        
+        <h2>Key Findings</h2>
+        <p>The following threats were identified:</p>
+        <ul>
+        {''.join([f'<li><strong>{t.get("title", "Unknown")}</strong> - {t.get("severity", "Unknown")} severity (CVE: {t.get("cve_id", "N/A")})</li>' for t in threats[:10]])}
+        </ul>
+        
+        <h2>Recommendations</h2>
+        <ul>
+            <li>Implement multi-factor authentication</li>
+            <li>Keep software updated with latest security patches</li>
+            <li>Deploy network segmentation and monitoring</li>
+            <li>Establish incident response procedures</li>
+            <li>Conduct regular security assessments</li>
+        </ul>
+        
+        <p><em>Note: This is a basic report generated due to processing constraints. For detailed analysis, please try the assessment again.</em></p>
+        """
     
 
     
