@@ -96,11 +96,33 @@ class LLMClient:
                 response = self.model.generate_content(prompt)
                 result = response.text
             elif self.provider == "perplexity":
-                # Show timeout warning for Perplexity
-                import streamlit as st
-                if hasattr(st, 'info'):
-                    st.info("⏳ Perplexity API may take up to 90 seconds for complex queries...")
                 result = await self._call_perplexity(prompt, max_tokens)
+                
+                # Check if Perplexity failed and fallback to Gemini if available
+                if ("error" in result.lower() or "timeout" in result.lower() or 
+                    "exception" in result.lower() or len(result) < 50):
+                    
+                    logging.warning(f"Perplexity failed: {result[:100]}... Attempting Gemini fallback")
+                    
+                    # Try Gemini as fallback
+                    try:
+                        gemini_key = None
+                        try:
+                            gemini_key = st.secrets["GEMINI_API_KEY"]
+                        except:
+                            gemini_key = os.getenv('GEMINI_API_KEY')
+                        
+                        if gemini_key:
+                            genai.configure(api_key=gemini_key)
+                            gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+                            fallback_response = gemini_model.generate_content(prompt)
+                            result = f"[Fallback to Gemini] {fallback_response.text}"
+                            logging.info("Successfully used Gemini fallback")
+                        else:
+                            result = f"Perplexity failed and no Gemini key available: {result}"
+                    except Exception as fallback_error:
+                        logging.error(f"Gemini fallback also failed: {str(fallback_error)}")
+                        result = f"Both Perplexity and Gemini failed: {result}"
             else:
                 result = "Error: Unsupported provider"
             
@@ -113,14 +135,23 @@ class LLMClient:
             return error_msg
     
     async def _call_perplexity(self, prompt: str, max_tokens: int) -> str:
-        """Call Perplexity API with retry logic"""
+        """Call Perplexity API with better error handling"""
         import requests
-        import time
+        import asyncio
+        from datetime import datetime
+        
+        # Log the start of the call
+        start_time = datetime.now()
+        logging.info(f"Perplexity API call started at {start_time}")
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
+        
+        # Shorter prompt for faster response
+        if len(prompt) > 2000:
+            prompt = prompt[:2000] + "... [truncated for faster response]"
         
         data = {
             "model": "sonar-pro",
@@ -129,49 +160,52 @@ class LLMClient:
                     "role": "user",
                     "content": prompt
                 }
-            ]
+            ],
+            "max_tokens": min(max_tokens, 1000),  # Limit tokens for faster response
+            "temperature": 0.1  # Lower temperature for more focused responses
         }
         
-        # Retry logic with exponential backoff
-        max_retries = 3
-        for attempt in range(max_retries):
+        def make_request():
+            """Synchronous request function"""
             try:
-                timeout = 60 if attempt == 0 else 90  # Increase timeout on retries
-                response = requests.post(self.base_url, json=data, headers=headers, timeout=timeout)
+                logging.info(f"Making Perplexity request with {len(prompt)} chars")
+                response = requests.post(
+                    self.base_url, 
+                    json=data, 
+                    headers=headers, 
+                    timeout=45  # Reduced timeout
+                )
+                
+                elapsed = (datetime.now() - start_time).total_seconds()
+                logging.info(f"Perplexity response received after {elapsed:.1f}s, status: {response.status_code}")
                 
                 if response.status_code == 200:
                     result = response.json()
                     content = result["choices"][0]["message"]["content"]
-                    
-                    # Add citations if available
-                    if "citations" in result and result["citations"]:
-                        citations = "\n\nSources:\n" + "\n".join([f"- {cite}" for cite in result["citations"][:3]])
-                        content += citations
-                    
+                    logging.info(f"Perplexity success: {len(content)} chars returned")
                     return content
                 else:
-                    try:
-                        error_json = response.json()
-                        error_msg = error_json.get('error', {}).get('message', response.text)
-                    except:
-                        error_msg = response.text
-                    
-                    if attempt == max_retries - 1:
-                        return f"Perplexity API error: {response.status_code} - {error_msg}"
+                    error_text = response.text[:500]  # Limit error text
+                    logging.error(f"Perplexity API error {response.status_code}: {error_text}")
+                    return f"Perplexity API error {response.status_code}: {error_text}"
                     
             except requests.exceptions.Timeout:
-                if attempt == max_retries - 1:
-                    return "Perplexity API timeout - please try again or switch to Gemini"
-                time.sleep(2 ** attempt)  # Exponential backoff
-                continue
-                
+                elapsed = (datetime.now() - start_time).total_seconds()
+                logging.error(f"Perplexity timeout after {elapsed:.1f}s")
+                return "Perplexity API timeout - switching to fallback response"
             except Exception as e:
-                if attempt == max_retries - 1:
-                    return f"Perplexity API exception: {str(e)}"
-                time.sleep(2 ** attempt)
-                continue
+                elapsed = (datetime.now() - start_time).total_seconds()
+                logging.error(f"Perplexity exception after {elapsed:.1f}s: {str(e)}")
+                return f"Perplexity error: {str(e)}"
         
-        return "Perplexity API failed after retries"
+        # Run the synchronous request in a thread pool
+        try:
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, make_request)
+            return result
+        except Exception as e:
+            logging.error(f"Async execution error: {str(e)}")
+            return f"Execution error: {str(e)}"
 
 def get_available_providers() -> Dict[str, Dict[str, str]]:
     """Get status of all available LLM providers"""
