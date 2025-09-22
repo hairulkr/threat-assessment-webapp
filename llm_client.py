@@ -136,7 +136,6 @@ class LLMClient:
         
         try:
             response = requests.post(self.base_url, json=data, headers=headers, timeout=30)
-            response.raise_for_status()  # This will raise the 400 error
             
             if response.status_code == 200:
                 result = response.json()
