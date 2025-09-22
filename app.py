@@ -183,7 +183,7 @@ class ThreatModelingWebApp:
             'assessment_running': False,
             'usage_tracker': DailyUsageTracker(),
             'show_methodology': False,
-            'selected_llm_provider': 'gemini-2.5-flash'
+            'selected_llm_provider': 'gemini-2.0-flash'
         }
         
         for key, value in defaults.items():
@@ -194,7 +194,7 @@ class ThreatModelingWebApp:
         """Run the threat assessment with progress tracking"""
         
         # Get selected LLM provider and model
-        provider_key = st.session_state.get('selected_llm_provider', 'gemini-2.5-flash')
+        provider_key = st.session_state.get('selected_llm_provider', 'gemini-2.0-flash')
         providers = get_available_providers()
         
         if provider_key in providers:
@@ -735,7 +735,7 @@ class ThreatModelingWebApp:
             # Provider selection
             if provider_options:
                 selected_idx = 0
-                current_provider = st.session_state.get('selected_llm_provider', 'gemini-2.5-flash')
+                current_provider = st.session_state.get('selected_llm_provider', 'gemini-2.0-flash')
                 if current_provider in provider_options:
                     selected_idx = provider_options.index(current_provider)
                 
@@ -875,7 +875,7 @@ class ThreatModelingWebApp:
                     except:
                         api_key = os.getenv('GEMINI_API_KEY')
                     
-                    provider_key = st.session_state.get('selected_llm_provider', 'gemini-2.5-flash')
+                    provider_key = st.session_state.get('selected_llm_provider', 'gemini-2.0-flash')
                     providers = get_available_providers()
                     
                     if provider_key in providers:
