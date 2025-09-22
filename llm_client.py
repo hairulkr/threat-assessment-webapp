@@ -1,5 +1,5 @@
 import os
-import google.generativeai as genai
+from google import genai
 import requests
 import streamlit as st
 import logging
@@ -41,9 +41,9 @@ class LLMClient:
             return
         
         try:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
-            self.model_name = "gemini-2.0-flash-exp"
+            self.client = genai.Client(api_key=self.api_key)
+            self.model = "gemini-2.5-flash"
+            self.model_name = "gemini-2.5-flash"
         except Exception as e:
             self.model = None
             self.model_name = f"Error: {str(e)}"
@@ -93,7 +93,10 @@ class LLMClient:
             logging.info(f"LLM Call ({self.provider}) - Model: {self.model_name} - Prompt: {prompt[:100]}...")
             
             if self.provider == "gemini":
-                response = self.model.generate_content(prompt)
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=prompt
+                )
                 result = response.text
             elif self.provider == "perplexity":
                 result = await self._call_perplexity(prompt, max_tokens)
@@ -113,9 +116,11 @@ class LLMClient:
                             gemini_key = os.getenv('GEMINI_API_KEY')
                         
                         if gemini_key:
-                            genai.configure(api_key=gemini_key)
-                            gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
-                            fallback_response = gemini_model.generate_content(prompt)
+                            gemini_client = genai.Client(api_key=gemini_key)
+                            fallback_response = gemini_client.models.generate_content(
+                                model="gemini-2.5-flash",
+                                contents=prompt
+                            )
                             result = f"[Fallback to Gemini] {fallback_response.text}"
                             logging.info("Successfully used Gemini fallback")
                         else:
