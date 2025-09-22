@@ -1,6 +1,6 @@
 import os
 import google.generativeai as genai
-import aiohttp
+import requests
 import streamlit as st
 import logging
 from typing import Optional, Dict, Any
@@ -109,8 +109,8 @@ class LLMClient:
             return error_msg
     
     async def _call_perplexity(self, prompt: str, max_tokens: int) -> str:
-        """Call Perplexity API"""
-        import aiohttp
+        """Call Perplexity API - using requests like the working test script"""
+        import requests
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -121,30 +121,29 @@ class LLMClient:
             "model": "sonar-pro",
             "messages": [
                 {
-                    "role": "user", 
+                    "role": "user",
                     "content": prompt
                 }
             ]
         }
         
         try:
-            timeout = aiohttp.ClientTimeout(total=30)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(self.base_url, json=data, headers=headers) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        content = result["choices"][0]["message"]["content"]
-                        
-                        # Add citations if available
-                        if "citations" in result and result["citations"]:
-                            citations = "\n\nSources:\n" + "\n".join([f"- {cite}" for cite in result["citations"][:3]])
-                            content += citations
-                        
-                        return content
-                    else:
-                        error_text = await response.text()
-                        return f"Perplexity API error: {response.status} - {error_text}"
-                        
+            response = requests.post(self.base_url, json=data, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                result = response.json()
+                content = result["choices"][0]["message"]["content"]
+                
+                # Add citations if available
+                if "citations" in result and result["citations"]:
+                    citations = "\n\nSources:\n" + "\n".join([f"- {cite}" for cite in result["citations"][:3]])
+                    content += citations
+                
+                return content
+            else:
+                error_msg = response.json().get('error', {}).get('message', response.text)
+                return f"Perplexity API error: {response.status_code} - {error_msg}"
+                
         except Exception as e:
             return f"Perplexity API error: {str(e)}"
 
