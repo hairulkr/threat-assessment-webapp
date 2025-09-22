@@ -845,7 +845,13 @@ class ThreatModelingWebApp:
             api_key = st.text_input("Perplexity API Key", type="password", 
                                    value=os.getenv('PERPLEXITY_API_KEY', ''))
             
-            if st.button("Test Connection"):
+            col1, col2 = st.columns(2)
+            with col1:
+                test_basic = st.button("Test Basic Connection")
+            with col2:
+                test_large = st.button("Test Large Query Only")
+            
+            if test_basic:
                 if not api_key:
                     st.error("Please enter your Perplexity API key")
                 else:
@@ -906,6 +912,155 @@ class ThreatModelingWebApp:
                                 st.write("Error:", response.text)
                         except Exception as e:
                             st.error(f"❌ Original model exception: {str(e)}")
+                        
+                        # Test 3: Large query (simulating actual usage)
+                        st.subheader("Test 3: Large Query Test (Simulating Controls Agent)")
+                        try:
+                            # Simulate the type of large prompt that causes timeouts
+                            large_prompt = """
+                            Based on the following risk assessment data, propose comprehensive security controls:
+                            
+                            RISK ASSESSMENT:
+                            Product: Visual Studio Code
+                            High Risk Vulnerabilities: 15 CVEs found
+                            Critical Severity: 3 vulnerabilities
+                            Exploit Available: 8 vulnerabilities have public exploits
+                            
+                            THREAT INTELLIGENCE:
+                            - CVE-2023-1234: Remote Code Execution in extension system
+                            - CVE-2023-5678: Privilege escalation through workspace trust bypass
+                            - CVE-2023-9012: Information disclosure via debug adapter
+                            
+                            Generate detailed security controls covering:
+                            1. Preventive controls with implementation details
+                            2. Detective controls with monitoring requirements
+                            3. Corrective controls with incident response procedures
+                            4. Administrative controls with policy requirements
+                            5. Technical controls with configuration specifications
+                            
+                            For each control, include:
+                            - Implementation priority (HIGH/MEDIUM/LOW)
+                            - Cost estimate (HIGH/MEDIUM/LOW)
+                            - Effectiveness rating against identified threats
+                            - Integration requirements with existing security stack
+                            - Compliance mapping (NIST, ISO 27001, etc.)
+                            """
+                            
+                            data = {
+                                "model": "sonar-pro",
+                                "messages": [{"role": "user", "content": large_prompt}],
+                                "max_tokens": 1000,
+                                "temperature": 0.2
+                            }
+                            
+                            st.write(f"Prompt length: {len(large_prompt)} characters")
+                            st.write("Testing with 45 second timeout...")
+                            
+                            response = requests.post(
+                                "https://api.perplexity.ai/chat/completions", 
+                                json=data, headers=headers, timeout=45
+                            )
+                            
+                            st.write(f"Status Code: {response.status_code}")
+                            if response.status_code == 200:
+                                result = response.json()
+                                content = result["choices"][0]["message"]["content"]
+                                st.success("✅ Large query works!")
+                                st.write("Response length:", len(content), "characters")
+                                st.write("First 300 chars:", content[:300] + "...")
+                            else:
+                                st.error(f"❌ Large query failed: {response.status_code}")
+                                st.write("Error:", response.text)
+                        except requests.exceptions.Timeout:
+                            st.error("❌ Large query timed out after 45 seconds")
+                            st.write("This explains why the controls agent is timing out!")
+                        except Exception as e:
+                            st.error(f"❌ Large query exception: {str(e)}")
+            
+            elif test_large:
+                if not api_key:
+                    st.error("Please enter your Perplexity API key")
+                else:
+                    import requests
+                    
+                    with st.spinner("Testing large query (this may take up to 45 seconds)..."):
+                        # Test only the large query that's causing issues
+                        st.subheader("Large Query Test (Controls Agent Simulation)")
+                        try:
+                            large_prompt = """
+                            Based on the following risk assessment data, propose comprehensive security controls:
+                            
+                            RISK ASSESSMENT:
+                            Product: Visual Studio Code
+                            High Risk Vulnerabilities: 15 CVEs found
+                            Critical Severity: 3 vulnerabilities
+                            Exploit Available: 8 vulnerabilities have public exploits
+                            
+                            THREAT INTELLIGENCE:
+                            - CVE-2023-1234: Remote Code Execution in extension system
+                            - CVE-2023-5678: Privilege escalation through workspace trust bypass
+                            - CVE-2023-9012: Information disclosure via debug adapter
+                            
+                            Generate detailed security controls covering:
+                            1. Preventive controls with implementation details
+                            2. Detective controls with monitoring requirements
+                            3. Corrective controls with incident response procedures
+                            4. Administrative controls with policy requirements
+                            5. Technical controls with configuration specifications
+                            
+                            For each control, include:
+                            - Implementation priority (HIGH/MEDIUM/LOW)
+                            - Cost estimate (HIGH/MEDIUM/LOW)
+                            - Effectiveness rating against identified threats
+                            - Integration requirements with existing security stack
+                            - Compliance mapping (NIST, ISO 27001, etc.)
+                            """
+                            
+                            headers = {
+                                "Authorization": f"Bearer {api_key}",
+                                "Content-Type": "application/json"
+                            }
+                            
+                            data = {
+                                "model": "sonar-pro",
+                                "messages": [{"role": "user", "content": large_prompt}],
+                                "max_tokens": 1000,
+                                "temperature": 0.2
+                            }
+                            
+                            st.write(f"Prompt length: {len(large_prompt)} characters")
+                            st.write("Testing with 45 second timeout...")
+                            
+                            import time
+                            start_time = time.time()
+                            
+                            response = requests.post(
+                                "https://api.perplexity.ai/chat/completions", 
+                                json=data, headers=headers, timeout=45
+                            )
+                            
+                            elapsed_time = time.time() - start_time
+                            
+                            st.write(f"Status Code: {response.status_code}")
+                            st.write(f"Response time: {elapsed_time:.1f} seconds")
+                            
+                            if response.status_code == 200:
+                                result = response.json()
+                                content = result["choices"][0]["message"]["content"]
+                                st.success(f"✅ Large query succeeded in {elapsed_time:.1f}s!")
+                                st.write("Response length:", len(content), "characters")
+                                with st.expander("View Response"):
+                                    st.write(content)
+                            else:
+                                st.error(f"❌ Large query failed: {response.status_code}")
+                                st.write("Error:", response.text)
+                        except requests.exceptions.Timeout:
+                            elapsed_time = time.time() - start_time
+                            st.error(f"❌ Large query timed out after {elapsed_time:.1f} seconds")
+                            st.write("**This explains why the controls agent is timing out!**")
+                            st.write("Recommendation: Use Gemini for complex queries or reduce prompt size")
+                        except Exception as e:
+                            st.error(f"❌ Large query exception: {str(e)}")
             
             return  # Exit early to show only debug
         
