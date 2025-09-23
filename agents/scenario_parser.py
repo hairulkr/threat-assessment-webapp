@@ -44,7 +44,7 @@ class ScenarioParser:
         
         # Fallback: look for placeholders if no scenarios found
         if not scenarios_found:
-            placeholders = re.findall(r'\\[DIAGRAM_PLACEHOLDER_SCENARIO_([A-Z0-9]+)\\]', report_content)
+            placeholders = re.findall(r'\[DIAGRAM_PLACEHOLDER_SCENARIO_([A-Z0-9]+)\]', report_content)
             scenarios_found = [(pid.upper(), f"Scenario {pid}") for pid in placeholders if pid.upper() not in processed_ids]
         
         print(f"Found unique scenarios: {scenarios_found}")
@@ -78,9 +78,9 @@ class ScenarioParser:
             
             # Find scenario start
             scenario_patterns = [
-                rf'<h[23]>[^<]*SCENARIO\\s+{re.escape(scenario_id)}[^<]*</h[23]>',
-                rf'SCENARIO\\s+{re.escape(scenario_id)}:[^\\n]*',
-                rf'\\d+\\.\\s*SCENARIO\\s+{re.escape(scenario_id)}:[^\\n]*'
+                rf'<h[23]>[^<]*SCENARIO\s+{re.escape(scenario_id)}[^<]*</h[23]>',
+                rf'SCENARIO\s+{re.escape(scenario_id)}:[^\n]*',
+                rf'\d+\.\s*SCENARIO\s+{re.escape(scenario_id)}:[^\n]*'
             ]
             
             for pattern in scenario_patterns:
@@ -113,10 +113,10 @@ class ScenarioParser:
         
         # If no placeholder found, insert after scenario title
         if not replaced:
-            scenario_pattern = f"SCENARIO\\s+{re.escape(scenario_id)}[^\\n]*"
+            scenario_pattern = f"SCENARIO\s+{re.escape(scenario_id)}[^\n]*"
             match = re.search(scenario_pattern, report_content, re.IGNORECASE)
             if match:
                 insert_pos = match.end()
-                report_content = report_content[:insert_pos] + "\\n" + diagram_html + report_content[insert_pos:]
+                report_content = report_content[:insert_pos] + "\n" + diagram_html + report_content[insert_pos:]
         
         return report_content

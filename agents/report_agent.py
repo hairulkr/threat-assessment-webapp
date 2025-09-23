@@ -18,6 +18,11 @@ class ReportAgent:
         self.scenario_parser = ScenarioParser()
         os.makedirs(self.reports_dir, exist_ok=True)
     
+    def determine_scenario_types(self, threats):
+        """Let LLM determine scenario types dynamically based on threat intelligence"""
+        # Return empty list - let LLM analyze threats and create scenarios dynamically
+        return []
+    
     async def parse_and_generate_diagrams(self, report_content: str, threats, product_name: str) -> str:
         """Parse scenarios from content and generate appropriate diagrams"""
         # Find unique scenarios using the dedicated parser
@@ -83,7 +88,6 @@ class ReportAgent:
         
         # Generate diagrams for scenarios
         threats = all_data.get('threats', [])
-        scenario_types = self.determine_scenario_types(threats)a.get('threats', [])
         product_name = all_data.get('product_name', 'Unknown Product')
         report_content = await self.parse_and_generate_diagrams(report_content, threats, product_name)
         
