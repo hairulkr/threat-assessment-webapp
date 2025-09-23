@@ -267,27 +267,9 @@ class ThreatModelingWebApp:
                 - 🏢 **Microsoft Security** - Vendor-specific advisories...
                 """)
             
-            try:
-                threats = await asyncio.wait_for(
-                    agents['threat'].fetch_recent_threats(product_info),
-                    timeout=60
-                )
-            except asyncio.TimeoutError:
-                st.error("Threat intelligence gathering timed out. Please try again.")
-                return None, None
-            except Exception as e:
-                st.error(f"Threat intelligence failed: {str(e)}")
-                return None, None
-            
-            # Clear status and show results
+            # Skip separate threat intelligence step - now handled in comprehensive analysis
             source_status.empty()
-            status_box.success(f"✅ **Threat Intelligence Complete:** {len(threats)} threats found from multiple sources")
-            
-            # Show source breakdown
-            if threats:
-                sources_found = list(set(t.get('source', 'Unknown') for t in threats))
-                st.info(f"📊 **Sources:** {', '.join(sources_found[:5])}{'...' if len(sources_found) > 5 else ''}")
-            # Note: threats will be updated in comprehensive analysis step
+            status_box.success("✅ **Ready for comprehensive analysis**")
             
             # Step 3: Comprehensive Intelligence Analysis
             status_text.markdown("**🧠 Step 3: Comprehensive intelligence analysis...**")
