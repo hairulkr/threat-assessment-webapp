@@ -27,12 +27,9 @@ try:
     from llm_client import LLMClient, get_available_providers
     from gemini_client import GeminiClient  # Keep for backward compatibility
     from agents.product_info_agent import ProductInfoAgent
-    from agents.threat_intel_agent import ThreatIntelAgent
-    from agents.threat_context_agent import ThreatContextAgent
-    from agents.risk_analysis_agent import RiskAnalysisAgent
+    from agents.intelligence_agent import IntelligenceAgent
     from agents.controls_agent import ControlsAgent
     from agents.report_agent import ReportAgent
-    from agents.reviewer_agent import ReviewerAgent
 except Exception as e:
     import streamlit as st
     st.error(f"Error importing modules: {e}")
@@ -210,15 +207,12 @@ class ThreatModelingWebApp:
             st.error(f"❌ {provider.title()} API key not found in secrets or environment variables")
             return None, None
         
-        # Initialize agents
+        # Initialize streamlined 4-agent architecture
         agents = {
             'product': ProductInfoAgent(llm),
-            'threat': ThreatIntelAgent(llm),
-            'context': ThreatContextAgent(llm),
-            'risk': RiskAnalysisAgent(llm),
+            'intelligence': IntelligenceAgent(llm),  # Consolidated threat intel + context + risk
             'controls': ControlsAgent(llm),
-            'report': ReportAgent(llm),
-            'reviewer': ReviewerAgent(llm)
+            'report': ReportAgent(llm)  # Enhanced with integrated review
         }
         
         # Progress tracking
@@ -293,34 +287,37 @@ class ThreatModelingWebApp:
             if threats:
                 sources_found = list(set(t.get('source', 'Unknown') for t in threats))
                 st.info(f"📊 **Sources:** {', '.join(sources_found[:5])}{'...' if len(sources_found) > 5 else ''}")
-            all_data["threats"] = threats
+            # Note: threats will be updated in comprehensive analysis step
             
-            # Step 3: Threat Context & Risk Analysis
-            status_text.markdown("**🌐 Step 3: Enriching with web intelligence...**")
+            # Step 3: Comprehensive Intelligence Analysis
+            status_text.markdown("**🧠 Step 3: Comprehensive intelligence analysis...**")
             progress_bar.progress(40)
             
-            # Show detailed web intelligence status
-            web_status = st.empty()
-            web_status.info("🌐 **Web Intelligence Sources:** Analyzing recent attack trends and similar tool compromises...")
+            # Show comprehensive analysis status
+            intel_status = st.empty()
+            intel_status.info("🧠 **Comprehensive Analysis:** Threat intelligence + context + risk assessment in single analysis...")
             
             try:
-                context_task = agents['context'].enrich_threat_report(product_name, threats)
-                risk_task = agents['risk'].analyze_risks(product_info, threats)
-                threat_context, risks = await asyncio.wait_for(
-                    asyncio.gather(context_task, risk_task),
-                    timeout=45
+                comprehensive_result = await asyncio.wait_for(
+                    agents['intelligence'].comprehensive_analysis(product_info),
+                    timeout=90
                 )
             except asyncio.TimeoutError:
-                st.error("Context analysis timed out. Please try again.")
+                st.error("Comprehensive analysis timed out. Please try again.")
                 return None, None
             except Exception as e:
-                st.error(f"Context analysis failed: {str(e)}")
+                st.error(f"Comprehensive analysis failed: {str(e)}")
                 return None, None
             
-            web_status.empty()
-            status_box.success("✅ **Context Analysis Complete:** Attack trends and risk assessment finished")
-            all_data["threat_context"] = threat_context
-            all_data["risks"] = risks
+            intel_status.empty()
+            status_box.success("✅ **Comprehensive Analysis Complete:** Threat intelligence, context, and risk assessment finished")
+            
+            # Update all_data with comprehensive results
+            all_data["threats"] = comprehensive_result.get('threats', [])
+            all_data["threat_context"] = comprehensive_result.get('threat_context', {})
+            all_data["risks"] = comprehensive_result.get('risk_assessment', {})
+            all_data["mitre_mapping"] = comprehensive_result.get('mitre_mapping', [])
+            all_data["validation_summary"] = comprehensive_result.get('validation_summary', {})
             
             progress_bar.progress(60)
             
@@ -329,8 +326,9 @@ class ThreatModelingWebApp:
             
             with st.spinner("🛡️ Generating security control recommendations..."):
                 try:
+                    # Use comprehensive risk assessment for control recommendations
                     controls = await asyncio.wait_for(
-                        agents['controls'].propose_controls(risks),
+                        agents['controls'].propose_controls(comprehensive_result.get('risk_assessment', {})),
                         timeout=150  # Increased for Perplexity
                     )
                 except asyncio.TimeoutError:
@@ -352,53 +350,34 @@ class ThreatModelingWebApp:
             status_box.success("Security control framework established")
             all_data["controls"] = controls
             
-            progress_bar.progress(75)
+            progress_bar.progress(80)
             
-            # Step 5: Expert Review & Report Generation
-            status_text.markdown("**📊 Step 5: Finalizing report generation...**")
+            # Step 5: Enhanced Report Generation
+            status_text.markdown("**📊 Step 5: Generating comprehensive report...**")
             
-            with st.spinner("📊 Conducting expert review and generating report..."):
+            with st.spinner("📊 Generating comprehensive report with integrated validation..."):
                 try:
-                    # Run review and report generation with Perplexity-compatible timeouts
-                    review_task = asyncio.wait_for(
-                        agents['reviewer'].conduct_comprehensive_review(all_data), 
-                        timeout=120
-                    )
-                    report_task = asyncio.wait_for(
+                    # Enhanced report generation with integrated review and batch diagrams
+                    report_content = await asyncio.wait_for(
                         agents['report'].generate_comprehensive_report(all_data),
                         timeout=180
                     )
                     
-                    review_results, report_content = await asyncio.gather(
-                        review_task, report_task, return_exceptions=True
-                    )
-                    
-                    # Handle individual failures
-                    if isinstance(review_results, Exception):
-                        st.warning(f"Review failed: {str(review_results)} - continuing with basic review")
-                        review_results = {"terminate_recommended": False, "confidence_score": 0.7}
-                    
-                    if isinstance(report_content, Exception):
-                        st.warning(f"Report generation failed: {str(report_content)} - generating basic report")
-                        report_content = self.generate_basic_report(all_data)
+                    if report_content is None:
+                        progress_bar.progress(100)
+                        st.session_state.assessment_running = False
+                        status_text.markdown("**⚠️ Analysis terminated due to insufficient data**")
+                        st.warning("Analysis terminated: No actionable threat intelligence found. Please try a different product name.")
+                        return None, None
                         
+                except asyncio.TimeoutError:
+                    st.warning("Report generation timed out - generating basic report")
+                    report_content = self.generate_basic_report(all_data)
                 except Exception as e:
-                    st.warning(f"Report generation had issues: {str(e)} - generating basic report")
-                    review_results = {"terminate_recommended": False, "confidence_score": 0.7}
+                    st.warning(f"Report generation failed: {str(e)} - generating basic report")
                     report_content = self.generate_basic_report(all_data)
             
-            status_box.success("Expert review and report generation completed")
-            
-            # Check for termination (only if review was successful)
-            if (isinstance(review_results, dict) and 
-                review_results.get("terminate_recommended", False)):
-                progress_bar.progress(100)
-                st.session_state.assessment_running = False
-                status_text.markdown("**⚠️ Analysis terminated due to low confidence data**")
-                st.warning("Analysis terminated: Low confidence threat intelligence detected. Please try a different product name.")
-                return None, None
-            
-            all_data["expert_review"] = review_results
+            status_box.success("Enhanced report generation completed")
             
             progress_bar.progress(100)
             st.session_state.assessment_running = False

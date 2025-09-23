@@ -29,9 +29,13 @@ class ReportFormatter:
         content = re.sub(r'<implicitInstruction>.*?</implicitInstruction>', '', content, flags=re.DOTALL | re.IGNORECASE)
         content = re.sub(r'<activeFile>.*?</activeFile>', '', content, flags=re.DOTALL | re.IGNORECASE)
         
-        # Fix HTML entities
+        # Fix HTML entities - comprehensive cleaning
         for entity, replacement in self.html_entities.items():
             content = content.replace(entity, replacement)
+        
+        # Additional HTML entity cleaning
+        content = re.sub(r'&[a-zA-Z0-9#]+;', '', content)  # Remove any remaining entities
+        content = re.sub(r'<[^>]*>', '', content)  # Remove any remaining HTML tags
         
         # Clean up whitespace
         content = re.sub(r'\n\s*\n\s*\n', '\n\n', content)

@@ -286,27 +286,57 @@ class MCPDiagramGenerator:
                 top_threat = threats[0]
                 cve_id = top_threat.get('cve_id', 'Unknown')
                 description = top_threat.get('description', '').lower()
+                severity = top_threat.get('severity', 'MEDIUM')
                 
-                if 'remote' in description:
+                # Enhanced CVE-specific flows
+                if 'remote' in description or 'network' in description:
                     phases = [
                         (f"CVE {cve_id} Discovery", "T1595"),
                         ("Remote Exploitation", "T1190"),
                         ("Code Execution", "T1059"),
+                        ("Persistence", "T1053"),
                         ("System Compromise", "T1486")
                     ]
-                elif 'privilege' in description:
+                elif 'privilege' in description or 'escalation' in description:
                     phases = [
                         (f"CVE {cve_id} Exploit", "T1068"),
                         ("Privilege Escalation", "T1068"),
-                        ("Admin Access", "T1078.003")
+                        ("Admin Access", "T1078.003"),
+                        ("System Control", "T1486")
+                    ]
+                elif 'injection' in description or 'sql' in description:
+                    phases = [
+                        (f"CVE {cve_id} Discovery", "T1595"),
+                        ("Injection Attack", "T1190"),
+                        ("Database Access", "T1005"),
+                        ("Data Exfiltration", "T1041")
+                    ]
+                elif severity in ['CRITICAL', 'HIGH']:
+                    phases = [
+                        (f"CVE {cve_id} Exploit", "T1190"),
+                        ("Initial Compromise", "T1059"),
+                        ("Lateral Movement", "T1021"),
+                        ("Data Access", "T1005"),
+                        ("System Impact", "T1486")
                     ]
                 else:
                     phases = [
                         (f"CVE {cve_id} Exploit", "T1190"),
                         ("System Impact", "T1486")
                     ]
+            else:
+                # Generic attack flow when no threats available
+                phases = [
+                    ("Reconnaissance", "T1595"),
+                    ("Initial Access", "T1190"),
+                    ("Execution", "T1059"),
+                    ("Impact", "T1486")
+                ]
         
-        return phases if phases else []
+        return phases if phases else [
+            ("Attack Initiation", "T1190"),
+            ("System Compromise", "T1486")
+        ]
     
     def generate_threat_specific_attack_flow(self, phases: List[tuple], scenario_id: str, product_name: str, threats: List[Dict[str, Any]]) -> str:
         """Generate threat intelligence-specific Mermaid diagram"""

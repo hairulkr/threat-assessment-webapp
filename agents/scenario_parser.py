@@ -72,9 +72,13 @@ class ScenarioParser:
         placeholder_pos = report_content.find(placeholder)
         
         if placeholder_pos > 0:
-            # Extract content before placeholder
-            search_start = max(0, placeholder_pos - 3000)
+            # Extract content before placeholder - increased window
+            search_start = max(0, placeholder_pos - 5000)
             content_before = report_content[search_start:placeholder_pos]
+            
+            # Clean HTML entities and tags
+            content_before = re.sub(r'&[a-zA-Z0-9#]+;', '', content_before)
+            content_before = re.sub(r'<[^>]+>', '', content_before)
             
             # Find scenario start
             scenario_patterns = [
@@ -90,8 +94,8 @@ class ScenarioParser:
                     scenario_start = search_start + last_match.start()
                     return report_content[scenario_start:placeholder_pos].strip()
             
-            # Fallback: return content before placeholder
-            return content_before[-2000:].strip()
+            # Fallback: return content before placeholder - increased size
+            return content_before[-3000:].strip()
         
         # Final fallback
         return f"Scenario {scenario_id}: {scenario_title}"
