@@ -29,7 +29,7 @@ class IntelligenceAgent:
                 all_threats = await intel_client.gather_optimized_intel(primary_keyword)
             
             if not all_threats:
-                print(f"   🔍 No threats found for {product_info.get('name', 'product')}")
+                print(f"   No threats found for {product_info.get('name', 'product')}")
                 return {
                     'threats': [],
                     'risk_assessment': {'overall_risk_level': 'LOW', 'risk_score': 2.0},
@@ -39,14 +39,14 @@ class IntelligenceAgent:
                 }
             
             # Apply multi-agent ranking optimization
-            print(f"   🤖 MULTI-AGENT RANKING: Optimizing {len(all_threats)} threats")
+            print(f"   MULTI-AGENT RANKING: Optimizing {len(all_threats)} threats")
             ranking_result = await self.ranking_orchestrator.optimize_threat_ranking(all_threats, primary_keyword)
             optimized_threats = ranking_result['optimized_threats']
             
             # Enhance threats with analyst-focused details
             enhanced_threats = self.accuracy_enhancer.enhance_threat_details(optimized_threats)
             
-            print(f"   🎯 COMPREHENSIVE ANALYSIS: Found {len(enhanced_threats)} enhanced threats")
+            print(f"   COMPREHENSIVE ANALYSIS: Found {len(enhanced_threats)} enhanced threats")
             
             # Return complete analysis with threat data
             return {

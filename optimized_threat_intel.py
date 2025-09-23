@@ -148,7 +148,7 @@ class OptimizedThreatIntel:
             search_engine_id = os.getenv('GOOGLE_CSE_ID')
         
         if not api_key or not search_engine_id:
-            print("   ⚠️ CSE credentials not found - skipping comprehensive search")
+            print("   WARNING: CSE credentials not found - skipping comprehensive search")
             return []
         
         # Search across all 12 configured sources
@@ -181,12 +181,12 @@ class OptimizedThreatIntel:
                             'final_score': self.calculate_score(source_info['cvss_score'], '', source_info['authority_weight'])
                         })
                     
-                    print(f"   🔍 CSE SEARCH: Found {len(intel_results)} results across 12 sources")
+                    print(f"   CSE SEARCH: Found {len(intel_results)} results across 12 sources")
                     return intel_results
                 else:
-                    print(f"   ❌ CSE API error: {response.status}")
+                    print(f"   ERROR: CSE API error: {response.status}")
         except Exception as e:
-            print(f"   ❌ CSE error: {e}")
+            print(f"   ERROR: CSE error: {e}")
         return []
     
     def identify_source(self, url: str) -> Dict[str, Any]:
@@ -289,7 +289,7 @@ class OptimizedThreatIntel:
     
     async def gather_optimized_intel(self, product_name: str) -> List[Dict[str, Any]]:
         """Gather intelligence from 5 core sources with optimized filtering"""
-        print(f"   🚀 OPTIMIZED INTEL: Gathering from 5 core sources for {product_name}")
+        print(f"   OPTIMIZED INTEL: Gathering from 5 core sources for {product_name}")
         
         # Execute core sources in parallel (10-second timeout each)
         tasks = [
@@ -318,7 +318,7 @@ class OptimizedThreatIntel:
         official = [item for item in relevant_intel if item.get('authority') == 'OFFICIAL']
         verified = [item for item in relevant_intel if item.get('authority') == 'VERIFIED']
         
-        print(f"   ✅ RESULTS: {len(relevant_intel)} relevant threats ({len(official)} official, {len(verified)} verified)")
+        print(f"   RESULTS: {len(relevant_intel)} relevant threats ({len(official)} official, {len(verified)} verified)")
         
         # Return top 8 threats
         return relevant_intel[:8]
