@@ -197,7 +197,51 @@ class IntelligenceAgent:
             'risk_assessment': {
                 'overall_risk_level': overall_risk,
                 'risk_score': risk_score,
-                'business_impact': f'{overall_risk} risk to business operations',
+                'business_impact': f'{overall_risk} risk level with {len(threats)} identified threats'
+            },
+            'mitre_mapping': [
+                {'technique': 'T1190', 'tactic': 'Initial Access', 'description': 'Exploit Public-Facing Application'}
+            ],
+            'validation_summary': {
+                'relevance_score': 0.8,
+                'data_quality': 'medium'
+            }
+        }
+    
+    def _create_fallback_risk_assessment(self, threats: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Create fallback risk assessment"""
+        if not threats:
+            return {'overall_risk_level': 'LOW', 'risk_score': 2.0}
+        
+        high_severity = sum(1 for t in threats if t.get('severity') in ['CRITICAL', 'HIGH'])
+        if high_severity > 2:
+            return {'overall_risk_level': 'HIGH', 'risk_score': 8.0}
+        elif high_severity > 0:
+            return {'overall_risk_level': 'MEDIUM', 'risk_score': 6.0}
+        else:
+            return {'overall_risk_level': 'LOW', 'risk_score': 4.0}rall_risk} risk level with {len(threats)} identified threats'
+            },
+            'mitre_mapping': [
+                {'technique': 'T1190', 'tactic': 'Initial Access', 'description': 'Exploit Public-Facing Application'}
+            ],
+            'validation_summary': {
+                'relevance_score': 0.8,
+                'data_quality': 'medium'
+            }
+        }
+    
+    def _create_fallback_risk_assessment(self, threats: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Create fallback risk assessment"""
+        if not threats:
+            return {'overall_risk_level': 'LOW', 'risk_score': 2.0}
+        
+        high_severity = sum(1 for t in threats if t.get('severity') in ['CRITICAL', 'HIGH'])
+        if high_severity > 2:
+            return {'overall_risk_level': 'HIGH', 'risk_score': 8.0}
+        elif high_severity > 0:
+            return {'overall_risk_level': 'MEDIUM', 'risk_score': 6.0}
+        else:
+            return {'overall_risk_level': 'LOW', 'risk_score': 4.0}rall_risk} risk to business operations',
                 'attack_complexity': 'MEDIUM'
             },
             'mitre_mapping': [

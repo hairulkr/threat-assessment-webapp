@@ -615,14 +615,63 @@ class ThreatModelingWebApp:
     
 
     
+    def check_session_timeout(self):
+        """Check if session has timed out (30 minutes default)"""
+        if not st.session_state.get('authenticated', False):
+            return False
+            
+        current_time = time.time()
+        login_time = st.session_state.get('login_timestamp', 0)
+        last_activity = st.session_state.get('last_activity', 0)
+        
+        # Session timeout: 30 minutes (1800 seconds)
+        session_timeout = 1800
+        
+        if current_time - last_activity > session_timeout:
+            # Session expired
+            st.session_state.authenticated = False
+            st.session_state.login_timestamp = 0
+            st.session_state.last_activity = 0
+            return False
+            
+        # Update last activity
+        st.session_state.last_activity = current_time
+        return True
+    
+    def get_session_time_remaining(self):
+        """Get remaining session time in seconds"""
+        if not st.session_state.get('authenticated', False):
+            return 0
+            
+        current_time = time.time()
+        last_activity = st.session_state.get('last_activity', 0)
+        session_timeout = 1800  # 30 minutes
+        
+        remaining = session_timeout - (current_time - last_activity)
+        return max(0, int(remaining))
+    
+    def logout(self):
+        """Manual logout - clear session"""
+        st.session_state.authenticated = False
+        st.session_state.login_timestamp = 0
+        st.session_state.last_activity = 0
+    
     def check_authentication(self):
-        """Password authentication with brute force protection"""
+        """Password authentication with session management and brute force protection"""
         if 'authenticated' not in st.session_state:
             st.session_state.authenticated = False
         if 'login_attempts' not in st.session_state:
             st.session_state.login_attempts = 0
         if 'login_lockout_time' not in st.session_state:
             st.session_state.login_lockout_time = 0
+        if 'login_timestamp' not in st.session_state:
+            st.session_state.login_timestamp = 0
+        if 'last_activity' not in st.session_state:
+            st.session_state.last_activity = 0
+            
+        # Check if already authenticated and session is valid
+        if self.check_session_timeout():
+            return  # Already logged in with valid session
         
         if not st.session_state.authenticated:
             st.markdown("""
@@ -666,8 +715,11 @@ class ThreatModelingWebApp:
                             st.stop()
                         
                         if password == app_password:
+                            current_time = time.time()
                             st.session_state.authenticated = True
                             st.session_state.login_attempts = 0  # Reset on success
+                            st.session_state.login_timestamp = current_time
+                            st.session_state.last_activity = current_time
                             st.rerun()
                         else:
                             st.session_state.login_attempts += 1
@@ -793,6 +845,26 @@ class ThreatModelingWebApp:
                 <div><strong>{remaining_tries}</strong> assessments remaining</div>
             </div>
             """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            st.markdown("### 🔐 Session")
+            
+            # Session status and logout
+            if st.session_state.get('authenticated', False):
+                remaining_time = self.get_session_time_remaining()
+                minutes = remaining_time // 60
+                seconds = remaining_time % 60
+                
+                if remaining_time > 300:  # > 5 minutes
+                    st.success(f"✅ Session: {minutes}m {seconds}s")
+                elif remaining_time > 60:  # 1-5 minutes
+                    st.warning(f"⚠️ Session: {minutes}m {seconds}s")
+                else:  # < 1 minute
+                    st.error(f"🔴 Session: {seconds}s")
+                
+                if st.button("🚪 Logout", use_container_width=True):
+                    self.logout()
+                    st.rerun()
             
             st.markdown("---")
             st.markdown("### 📚 Documentation")
