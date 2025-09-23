@@ -942,12 +942,13 @@ class ThreatModelingWebApp:
                     # Use selected product or user input
                     final_product = st.session_state.get('selected_product', product_input)
                     
-                    # Show the product name that will be assessed
-                    st.text_input(
+                    # Show the product name that will be assessed (editable)
+                    final_product = st.text_input(
                         "Product to assess:",
                         value=final_product,
-                        disabled=True,
-                        help="This is the product that will be assessed"
+                        disabled=False,
+                        help="You can edit this product name before starting the assessment",
+                        key="final_product_input"
                     )
                     
                     col_a, col_b = st.columns([4, 1])
