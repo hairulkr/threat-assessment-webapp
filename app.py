@@ -457,9 +457,14 @@ class ThreatModelingWebApp:
     def create_pdf_download(self, content: str, filename: str):
         """Create PDF download with same format as threat assessment report"""
         import html
-        # Escape content to prevent XSS
-        safe_content = html.escape(content) if isinstance(content, str) else content
-        safe_filename = html.escape(filename)
+        import re
+        # Escape content to prevent XSS - but preserve safe HTML tags
+        if isinstance(content, str):
+            # Allow only safe HTML tags, escape everything else
+            safe_content = re.sub(r'<(?!/?(?:h[1-6]|p|ul|ol|li|strong|em|div|span)\b)[^>]*>', '', content)
+        else:
+            safe_content = content
+        safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)  # Sanitize filename
         
         # Create full HTML with same styling as the report display
         full_html = f"""

@@ -12,11 +12,14 @@ class MCPDiagramGenerator:
     
     def generate_mermaid_html(self, diagram_code: str, title: str = "") -> str:
         """Generate HTML with embedded Mermaid diagram"""
+        import html
+        safe_title = html.escape(title)
+        safe_diagram_code = html.escape(diagram_code)
         return f"""
         <div class="diagram-container">
-            <h3>{title}</h3>
+            <h3>{safe_title}</h3>
             <div class="mermaid">
-                {diagram_code}
+                {safe_diagram_code}
             </div>
         </div>
         """
@@ -26,9 +29,12 @@ class MCPDiagramGenerator:
         diagrams_dir = "reports/diagrams"
         os.makedirs(diagrams_dir, exist_ok=True)
 
-        # Validate scenario_id to prevent path traversal
+        # Validate scenario_id to prevent path traversal and command injection
         safe_scenario_id = re.sub(r'[^a-zA-Z0-9_-]', '', str(scenario_id))
-        if not safe_scenario_id:
+        if not safe_scenario_id or len(safe_scenario_id) > 50:
+            safe_scenario_id = 'default'
+        # Additional validation to prevent command injection
+        if any(char in safe_scenario_id for char in ['..', '/', '\\', ';', '&', '|', '`']):
             safe_scenario_id = 'default'
         
         # File paths with validation
@@ -55,64 +61,7 @@ class MCPDiagramGenerator:
             return None
 
     
-    async def insert_scenario_diagrams(self, threats: List[Dict[str, Any]], product_name: str, report_content: str) -> str:
-        """Insert attack flow diagrams after each attack scenario"""
-        
-        import logging
-        logging.info("Connecting to Mermaid MCP server...")
-        logging.info("Generating diagrams for each attack scenario...")
-        
-        # Multiple patterns to find scenarios - more robust approach
-        patterns = [
-            r'SCENARIO ([A-Z]):[^\[]*?\[DIAGRAM_PLACEHOLDER_SCENARIO_([A-Z])\]',  # Direct match with placeholder
-            r'SCENARIO ([A-Z]):.*?(?=SCENARIO [A-Z]:|$)',  # Match until next scenario or end
-            r'(?:^|\n)\s*SCENARIO ([A-Z]):.*?(?=(?:^|\n)\s*SCENARIO [A-Z]:|$)'  # Line-based matching
-        ]
-        
-        # Also find all placeholders to ensure we generate diagrams for all
-        placeholder_pattern = r'\[DIAGRAM_PLACEHOLDER_SCENARIO_([A-Z])\]'
-        placeholders = re.findall(placeholder_pattern, report_content)
-        
-        logging.info(f"Found placeholders for scenarios: {placeholders}")
-        
-        # Generate diagrams for each found placeholder
-        for scenario_id in placeholders:
-            logging.info(f"Generating diagram for Scenario {scenario_id}...")
-            
-            # Find the scenario text using multiple patterns
-            scenario_text = ""
-            for pattern in patterns:
-                matches = re.finditer(pattern, report_content, re.DOTALL | re.MULTILINE)
-                for match in matches:
-                    if match.group(1) == scenario_id:
-                        scenario_text = match.group(0)
-                        break
-                if scenario_text:
-                    break
-            
-            if not scenario_text:
-                # Fallback: extract text around the placeholder
-                placeholder_pos = report_content.find(f'[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}]')
-                if placeholder_pos > 0:
-                    # Get 1000 characters before the placeholder
-                    start = max(0, placeholder_pos - 1000)
-                    scenario_text = report_content[start:placeholder_pos]
-            
-            logging.debug(f"Scenario Text Length: {len(scenario_text)}")
-            
-            # Generate diagram for this specific scenario
-            try:
-                diagram_html = await self.generate_scenario_diagram(scenario_text, scenario_id, threats, product_name)
-                logging.info(f"Generated diagram HTML for Scenario {scenario_id}")
-            except Exception as e:
-                logging.error(f"Diagram generation failed for Scenario {scenario_id}: {e}")
-                diagram_html = f"<div class='diagram-error'>Diagram generation failed for Scenario {scenario_id}</div>"
 
-            # Replace placeholder with diagram
-            placeholder = f'[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}]'
-            report_content = report_content.replace(placeholder, diagram_html)
-
-        return report_content
     
     async def generate_scenario_diagram(self, scenario_text: str, scenario_id: str, threats: List[Dict[str, Any]], product_name: str) -> str:
         """Generate attack flow diagram based on actual scenario content and phases"""
