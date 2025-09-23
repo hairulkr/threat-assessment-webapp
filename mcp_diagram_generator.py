@@ -2,6 +2,7 @@ from typing import Dict, Any, List
 import subprocess
 import os
 import re
+import logging
 
 class MCPDiagramGenerator:
     """Diagram generator with LLM context analysis"""
@@ -136,6 +137,8 @@ class MCPDiagramGenerator:
     async def extract_actual_attack_phases(self, scenario_text: str, scenario_id: str, threats: List[Dict[str, Any]]) -> List[tuple]:
         """Extract actual attack phases from scenario content using LLM analysis"""
         
+        print(f"🔍 Analyzing scenario {scenario_id} with {len(scenario_text)} chars")
+        
         # Use LLM to analyze scenario and extract attack phases
         analysis_prompt = f"""
         Analyze this attack scenario and extract the specific attack phases mentioned:
@@ -163,6 +166,7 @@ class MCPDiagramGenerator:
         
         try:
             llm_response = await self.llm.generate(analysis_prompt, max_tokens=300)
+            print(f"🤖 LLM response: {llm_response[:200]}...")
             
             # Parse LLM response to extract phases
             phases = []
@@ -176,18 +180,24 @@ class MCPDiagramGenerator:
                     mitre_id = match.group(2).strip()
                     phases.append((phase_name, mitre_id))
             
+            print(f"📊 LLM extracted {len(phases)} phases: {[p[0] for p in phases]}")
+            
             # If LLM extraction failed, fall back to pattern matching
             if not phases:
+                print(f"🔄 LLM failed, trying pattern matching...")
                 phases = self.extract_phases_from_text(scenario_text)
+                print(f"📊 Pattern extracted {len(phases)} phases: {[p[0] for p in phases]}")
             
             # Final fallback to scenario-specific flow
             if not phases:
+                print(f"🔄 Pattern failed, using scenario-specific flow...")
                 phases = self.create_scenario_specific_attack_flow(scenario_text, scenario_id, threats)
+                print(f"📊 Scenario-specific extracted {len(phases)} phases: {[p[0] for p in phases]}")
             
             return phases[:7]  # Limit to 7 phases max
             
         except Exception as e:
-            logging.error(f"LLM phase extraction failed: {e}")
+            print(f"⚠️ LLM phase extraction failed: {e}")
             return self.extract_phases_from_text(scenario_text)
     
     def extract_phases_from_text(self, scenario_text: str) -> List[tuple]:

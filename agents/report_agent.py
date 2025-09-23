@@ -68,7 +68,9 @@ class ReportAgent:
                 else:
                     continue
                 
-                scenarios_found.append((scenario_id, scenario_title.strip()))
+                # Clean HTML entities from title
+                clean_title = scenario_title.replace('&amp;#39;', "'").replace('&amp;lt;', '<').replace('&amp;gt;', '>').replace('&lt;/h2&gt;', '').replace('</h2>', '')
+                scenarios_found.append((scenario_id, clean_title.strip()))
         
         # Remove duplicates and sort
         scenarios_found = list(dict.fromkeys(scenarios_found))
@@ -86,13 +88,17 @@ class ReportAgent:
             
             # Extract scenario content
             scenario_content = self.extract_scenario_content(report_content, scenario_id, scenario_title)
+            print(f"📝 Extracted scenario content length: {len(scenario_content)}")
+            print(f"📝 First 200 chars: {scenario_content[:200]}...")
             
             # Generate diagram
             try:
                 async with self.diagram_generator as mcp_gen:
                     diagram_html = await mcp_gen.generate_scenario_diagram(scenario_content, scenario_id, threats, product_name)
+                print(f"✅ Dynamic diagram generated for {scenario_id}")
             except Exception as e:
                 print(f"⚠️ Diagram generation failed for {scenario_id}: {e}")
+                print(f"🔄 Using fallback diagram")
                 diagram_html = self.create_fallback_diagram(scenario_id, scenario_title, product_name)
             
             # Replace placeholder or insert after scenario
