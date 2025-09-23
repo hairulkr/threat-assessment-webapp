@@ -598,7 +598,7 @@ class ThreatModelingWebApp:
 
     
     def check_session_timeout(self):
-        """Check if session has timed out (30 minutes default)"""
+        """Check if session has timed out (2 hours default)"""
         if not st.session_state.get('authenticated', False):
             return False
             
@@ -606,8 +606,8 @@ class ThreatModelingWebApp:
         login_time = st.session_state.get('login_timestamp', 0)
         last_activity = st.session_state.get('last_activity', 0)
         
-        # Session timeout: 30 minutes (1800 seconds)
-        session_timeout = 1800
+        # Session timeout: 2 hours (7200 seconds) - longer for better UX
+        session_timeout = 7200
         
         if current_time - last_activity > session_timeout:
             # Session expired
@@ -629,6 +629,7 @@ class ThreatModelingWebApp:
         last_activity = st.session_state.get('last_activity', 0)
         session_timeout = 1800  # 30 minutes
         
+        session_timeout = 7200  # 2 hours
         remaining = session_timeout - (current_time - last_activity)
         return max(0, int(remaining))
     
@@ -637,6 +638,8 @@ class ThreatModelingWebApp:
         st.session_state.authenticated = False
         st.session_state.login_timestamp = 0
         st.session_state.last_activity = 0
+        
+        # Session cleared from Streamlit session state
     
     def check_authentication(self):
         """Password authentication with session management and brute force protection"""
@@ -650,6 +653,10 @@ class ThreatModelingWebApp:
             st.session_state.login_timestamp = 0
         if 'last_activity' not in st.session_state:
             st.session_state.last_activity = 0
+            
+        # Auto-authenticate for development (remove in production)
+        # For now, just extend session timeout to 2 hours for better UX
+        pass
             
         # Check if already authenticated and session is valid
         if self.check_session_timeout():
@@ -702,6 +709,9 @@ class ThreatModelingWebApp:
                             st.session_state.login_attempts = 0  # Reset on success
                             st.session_state.login_timestamp = current_time
                             st.session_state.last_activity = current_time
+                            
+                            # Session stored in Streamlit session state
+                            
                             st.rerun()
                         else:
                             st.session_state.login_attempts += 1
