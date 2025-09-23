@@ -33,9 +33,8 @@ class ReportFormatter:
         for entity, replacement in self.html_entities.items():
             content = content.replace(entity, replacement)
         
-        # Additional HTML entity cleaning
-        content = re.sub(r'&[a-zA-Z0-9#]+;', '', content)  # Remove any remaining entities
-        content = re.sub(r'<[^>]*>', '', content)  # Remove any remaining HTML tags
+        # Additional HTML entity cleaning - but preserve valid HTML structure
+        content = re.sub(r'&[a-zA-Z0-9#]+;(?![a-zA-Z0-9#]*>)', '', content)  # Remove entities but not in tags
         
         # Clean up whitespace
         content = re.sub(r'\n\s*\n\s*\n', '\n\n', content)
@@ -44,13 +43,38 @@ class ReportFormatter:
     
     def normalize_html_structure(self, content: str) -> str:
         """Ensure consistent HTML structure across different LLMs"""
+        # Convert plain text sections to proper HTML
+        lines = content.split('\n')
+        formatted_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                formatted_lines.append('')
+                continue
+                
+            # Main headers
+            if line.upper() in ['EXECUTIVE SUMMARY', 'THREAT INTELLIGENCE ANALYSIS', 'ATTACK SCENARIOS', 'SECURITY CONTROLS & MITIGATIONS']:
+                formatted_lines.append(f'<h1>{line}</h1>')
+            # Scenario headers
+            elif re.match(r'^SCENARIO [A-Z]:', line):
+                formatted_lines.append(f'<h2>{line}</h2>')
+            # Phase headers
+            elif re.match(r'^Phase \d+:', line):
+                formatted_lines.append(f'<h3>{line}</h3>')
+            # Sub-sections
+            elif line.endswith(':') and len(line) < 50:
+                formatted_lines.append(f'<h4>{line}</h4>')
+            # Regular paragraphs
+            elif not line.startswith('<'):
+                formatted_lines.append(f'<p>{line}</p>')
+            else:
+                formatted_lines.append(line)
+        
+        content = '\n'.join(formatted_lines)
+        
         # Fix common markdown leakage
         content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', content)
-        content = re.sub(r'#{1,6}\s*(.*?)(?=\n|$)', r'<h3>\1</h3>', content)
-        
-        # Ensure proper HTML wrapper
-        if not content.strip().startswith('<'):
-            content = f"<div class='report-content'>{content}</div>"
         
         # Fix unclosed tags (basic validation)
         content = self._fix_unclosed_tags(content)
@@ -119,9 +143,46 @@ class ReportFormatter:
         }}
         .critical {{ color: #dc3545; font-weight: bold; }}
         .mitre {{ background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-family: monospace; }}
-        h1 {{ color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }}
-        h2 {{ color: #34495e; margin-top: 30px; }}
-        h3 {{ color: #5a6c7d; }}
+        h1 {{ 
+            color: #2c3e50; 
+            border-bottom: 3px solid #3498db; 
+            padding-bottom: 15px;
+            margin-top: 40px;
+            margin-bottom: 25px;
+            font-size: 2.2em;
+        }}
+        h2 {{ 
+            color: #34495e; 
+            margin-top: 35px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 4px solid #e74c3c;
+            padding-left: 15px;
+        }}
+        h3 {{ 
+            color: #5a6c7d;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }}
+        h4 {{
+            color: #7f8c8d;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }}
+        p {{
+            margin-bottom: 15px;
+            text-align: justify;
+        }}
+        .attack-flow {{
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: monospace;
+        }}
     </style>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
     <script>
