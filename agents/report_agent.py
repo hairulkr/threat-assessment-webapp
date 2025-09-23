@@ -120,41 +120,38 @@ class ReportAgent:
         return report_content
     
     def extract_scenario_content(self, report_content: str, scenario_id: str, scenario_title: str) -> str:
-        """Extract the content of a specific scenario"""
+        """Extract scenario content by finding placeholder and working backwards"""
         import re
         
-        # Find the scenario start
-        scenario_patterns = [
-            f"SCENARIO\\s+{re.escape(scenario_id)}[^\\n]*",
-            f"\\d+\\.\\d+\\s+SCENARIO\\s+{re.escape(scenario_id)}[^\\n]*",
-            re.escape(scenario_title)
-        ]
+        # Find placeholder position first
+        placeholder = f'[DIAGRAM_PLACEHOLDER_SCENARIO_{scenario_id}]'
+        placeholder_pos = report_content.find(placeholder)
         
-        start_pos = -1
-        for pattern in scenario_patterns:
-            match = re.search(pattern, report_content, re.IGNORECASE)
-            if match:
-                start_pos = match.start()
-                break
+        if placeholder_pos > 0:
+            # Extract content before placeholder (likely the scenario)
+            search_start = max(0, placeholder_pos - 3000)
+            content_before = report_content[search_start:placeholder_pos]
+            
+            # Find most recent scenario-like heading
+            scenario_patterns = [
+                r'\*\*SCENARIO\s+[A-Z]:[^*]*\*\*',
+                r'SCENARIO\s+[A-Z]:[^\n]*',
+                r'\d+\.\s*SCENARIO\s+[A-Z]:[^\n]*',
+                r'<h[23]>[^<]*SCENARIO[^<]*</h[23]>'
+            ]
+            
+            for pattern in scenario_patterns:
+                matches = list(re.finditer(pattern, content_before, re.IGNORECASE | re.DOTALL))
+                if matches:
+                    last_match = matches[-1]
+                    scenario_start = search_start + last_match.start()
+                    return report_content[scenario_start:placeholder_pos].strip()
+            
+            # Fallback: return content before placeholder
+            return content_before[-2000:].strip()
         
-        if start_pos == -1:
-            return f"Scenario {scenario_id}: {scenario_title}"
-        
-        # Find the end (next scenario or section)
-        end_patterns = [
-            r"SCENARIO\s+[A-Z0-9]",
-            r"\d+\.\s+[A-Z]",  # Next numbered section
-            r"<h[12]>",  # Next HTML heading
-        ]
-        
-        end_pos = len(report_content)
-        for pattern in end_patterns:
-            matches = list(re.finditer(pattern, report_content[start_pos + 50:], re.IGNORECASE))
-            if matches:
-                end_pos = start_pos + 50 + matches[0].start()
-                break
-        
-        return report_content[start_pos:end_pos]
+        # Original fallback
+        return f"Scenario {scenario_id}: {scenario_title}"
     
     def create_fallback_diagram(self, scenario_id: str, scenario_title: str, product_name: str) -> str:
         """Create a simple fallback diagram"""
