@@ -18,7 +18,7 @@ class ScenarioParser:
         scenarios_found = []
         processed_ids = set()
         
-        print("🔍 Parsing scenarios from report content...")
+        print("Parsing scenarios from report content...")
         
         # Try each pattern in priority order
         for pattern in self.scenario_patterns:
