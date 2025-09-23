@@ -117,7 +117,7 @@ class ScenarioParser:
         
         # If no placeholder found, insert after scenario title
         if not replaced:
-            scenario_pattern = f"SCENARIO\s+{re.escape(scenario_id)}[^\n]*"
+            scenario_pattern = rf"SCENARIO\s+{re.escape(scenario_id)}[^\n]*"
             match = re.search(scenario_pattern, report_content, re.IGNORECASE)
             if match:
                 insert_pos = match.end()
