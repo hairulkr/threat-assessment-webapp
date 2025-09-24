@@ -49,8 +49,9 @@ class ProfessionalHTMLFormatter:
         # Format MITRE ATT&CK references
         content = re.sub(r'\b(T\d{4}(?:\.\d{3})?)\b', r'`\1`{.mitre-technique}', content)
         
-        # Format CVE references
-        content = re.sub(r'\b(CVE-\d{4}-\d{4,})\b', r'**\1**{.cve-id}', content)
+        # Format CVE references with proper HTML
+        content = re.sub(r'\*\*(CVE-\d{4}-\d{4,})\*\*\{?\.?cve-id\}?', r'<span class="cve-badge">\1</span>', content)
+        content = re.sub(r'\b(CVE-\d{4}-\d{4,})\b', r'<span class="cve-badge">\1</span>', content)
         
         return content
     
@@ -69,8 +70,12 @@ class ProfessionalHTMLFormatter:
         html_content = re.sub(r'<code class="mitre-technique">(T\d{4}(?:\.\d{3})?)</code>', 
                              r'<span class="mitre-badge">\1</span>', html_content)
         
-        # Style CVE references
+        # Style CVE references - handle multiple formats
         html_content = re.sub(r'<strong class="cve-id">(CVE-\d{4}-\d{4,})</strong>', 
+                             r'<span class="cve-badge">\1</span>', html_content)
+        html_content = re.sub(r'\*\*(CVE-\d{4}-\d{4,})\*\*', 
+                             r'<span class="cve-badge">\1</span>', html_content)
+        html_content = re.sub(r'(?<!<span class="cve-badge">)\b(CVE-\d{4}-\d{4,})\b(?!</span>)', 
                              r'<span class="cve-badge">\1</span>', html_content)
         
         # Add severity indicators

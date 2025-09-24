@@ -1,6 +1,7 @@
 import json
 import os
 import asyncio
+import re
 from typing import Dict, Any
 from datetime import datetime
 # from mcp_diagram_generator import MCPDiagramGenerator  # No longer needed for batch processing
@@ -255,6 +256,9 @@ class ReportAgent:
             # Clean and normalize LLM response
             report_content = self.formatter.clean_llm_response(report_content)
             
+            # Ensure consistent CVE and MITRE formatting before HTML conversion
+            report_content = self._normalize_threat_references(report_content)
+            
             # Convert to professional HTML format
             report_content = self.professional_formatter.convert_markdown_to_html(report_content)
             
@@ -274,6 +278,18 @@ class ReportAgent:
             print(f"   ⚠️ Report generation failed: {e}")
             return self._generate_basic_report(all_data)
     
+    def _normalize_threat_references(self, content: str) -> str:
+        """Normalize CVE and MITRE references for consistent formatting"""
+        # Normalize CVE references
+        content = re.sub(r'\*\*(CVE-\d{4}-\d{4,})\*\*', r'\1', content)
+        content = re.sub(r'CVE[:\s-]*(\d{4}-\d{4,})', r'CVE-\1', content)
+        
+        # Normalize MITRE ATT&CK references
+        content = re.sub(r'\*\*(T\d{4}(?:\.\d{3})?)\*\*', r'\1', content)
+        content = re.sub(r'MITRE[:\s-]*(T\d{4}(?:\.\d{3})?)', r'\1', content)
+        
+        return content
+    
     def _generate_basic_report(self, all_data: Dict[str, Any]) -> str:
         """Generate basic fallback report when full generation fails"""
         product_name = all_data.get('product_name', 'Unknown Product')
@@ -283,32 +299,46 @@ class ReportAgent:
         high_severity = len([t for t in threats if t.get('severity') == 'HIGH'])
         critical_severity = len([t for t in threats if t.get('severity') == 'CRITICAL'])
         
-        return f"""
-        <h1>Threat Assessment Report - {product_name}</h1>
+        # Generate threat list with proper CVE formatting
+        threat_items = []
+        for t in threats[:10]:
+            cve_id = t.get('cve_id', 'N/A')
+            if cve_id != 'N/A' and not cve_id.startswith('CVE-'):
+                cve_id = f'CVE-{cve_id}' if cve_id.replace('-', '').isdigit() else cve_id
+            
+            severity = t.get('severity', 'Unknown')
+            title = t.get('title', 'Unknown Threat')
+            
+            threat_items.append(
+                f'<li><strong>{title}</strong> - <span class="severity-{severity}">{severity}</span> '
+                f'(<span class="cve-badge">{cve_id}</span>)</li>'
+            )
         
-        <h2>Executive Summary</h2>
-        <p>This assessment identified <strong>{threat_count} potential threats</strong> for {product_name}.</p>
-        <ul>
-            <li>Critical threats: {critical_severity}</li>
-            <li>High severity threats: {high_severity}</li>
-            <li>Assessment completed with basic analysis</li>
-        </ul>
-        
-        <h2>Key Findings</h2>
-        <p>The following threats were identified:</p>
-        <ul>
-        {''.join([f'<li><strong>{t.get("title", "Unknown")}</strong> - {t.get("severity", "Unknown")} severity (CVE: {t.get("cve_id", "N/A")})</li>' for t in threats[:10]])}
-        </ul>
-        
-        <h2>Recommendations</h2>
-        <ul>
-            <li>Implement multi-factor authentication</li>
-            <li>Keep software updated with latest security patches</li>
-            <li>Deploy network segmentation and monitoring</li>
-            <li>Establish incident response procedures</li>
-            <li>Conduct regular security assessments</li>
-        </ul>
+        basic_content = f"""
+# Threat Assessment Report - {product_name}
+
+## Executive Summary
+This assessment identified **{threat_count} potential threats** for {product_name}.
+
+- Critical threats: {critical_severity}
+- High severity threats: {high_severity}
+- Assessment completed with basic analysis
+
+## Key Findings
+The following threats were identified:
+
+{''.join(threat_items)}
+
+## Recommendations
+- Implement multi-factor authentication
+- Keep software updated with latest security patches
+- Deploy network segmentation and monitoring
+- Establish incident response procedures
+- Conduct regular security assessments
         """
+        
+        # Use professional formatter for consistency
+        return self.professional_formatter.convert_markdown_to_html(basic_content)
     
     def save_html_report(self, report_content: str, product_name: str) -> str:
         """Save report as professional HTML webpage"""
