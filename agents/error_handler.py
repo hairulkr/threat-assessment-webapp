@@ -34,9 +34,16 @@ class AgentErrorHandler:
                     timeout=timeout
                 )
                 
-                # Success
+                # Success - wrap result if it's not already an AgentResult
                 AGENT_MONITOR.end_execution(agent_name, start_time, True)
-                return result
+                if isinstance(result, AgentResult):
+                    return result
+                else:
+                    return AgentResult(
+                        success=True,
+                        data=result,
+                        agent_name=agent_name
+                    )
                 
             except asyncio.TimeoutError as e:
                 last_error = f"Timeout after {timeout}s (attempt {attempt + 1})"
@@ -60,10 +67,18 @@ class AgentErrorHandler:
                     timeout=timeout // 2  # Shorter timeout for fallback
                 )
                 
-                # Fallback success
+                # Fallback success - wrap result if needed
                 AGENT_MONITOR.end_execution(agent_name, start_time, True, f"Fallback used: {last_error}")
-                result.error = f"Main operation failed, used fallback: {last_error}"
-                return result
+                if isinstance(result, AgentResult):
+                    result.error = f"Main operation failed, used fallback: {last_error}"
+                    return result
+                else:
+                    return AgentResult(
+                        success=True,
+                        data=result,
+                        error=f"Main operation failed, used fallback: {last_error}",
+                        agent_name=agent_name
+                    )
                 
             except Exception as fallback_error:
                 last_error = f"Main: {last_error}, Fallback: {str(fallback_error)}"
