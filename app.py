@@ -661,11 +661,10 @@ class ThreatModelingWebApp:
         if 'last_activity' not in st.session_state:
             st.session_state.last_activity = 0
             
-        # Try to restore session from URL parameters
+        # Try to restore session from URL parameters on every check
         if not st.session_state.get('authenticated', False):
             if self.session_manager.restore_session_from_url():
                 st.success("✅ Session restored")
-                time.sleep(1)
                 st.rerun()
             
         # Check if already authenticated and session is valid

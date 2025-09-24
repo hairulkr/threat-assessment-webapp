@@ -33,33 +33,49 @@ class SimpleSessionManager:
     
     def restore_session_from_url(self):
         """Restore session from URL parameters"""
-        query_params = st.query_params
-        
-        if query_params.get('auth') == 'true':
-            try:
-                login_time = float(query_params.get('t', '0'))
-                provided_hash = query_params.get('h', '')
-                
-                # Validate hash
-                expected_hash = self.generate_session_hash(login_time)
-                if provided_hash == expected_hash:
-                    # Check if session is still valid
-                    current_time = time.time()
-                    if current_time - login_time < self.session_timeout:
-                        # Restore session
-                        st.session_state.authenticated = True
-                        st.session_state.login_timestamp = login_time
-                        st.session_state.last_activity = current_time
-                        st.session_state.login_attempts = 0
-                        return True
+        try:
+            query_params = st.query_params
+            
+            # Debug: Show what we found
+            if query_params:
+                print(f"Debug: Found query params: {dict(query_params)}")
+            
+            if query_params.get('auth') == 'true':
+                print("Debug: Found auth=true")
+                try:
+                    login_time = float(query_params.get('t', '0'))
+                    provided_hash = query_params.get('h', '')
+                    
+                    print(f"Debug: login_time={login_time}, provided_hash={provided_hash}")
+                    
+                    # Validate hash
+                    expected_hash = self.generate_session_hash(login_time)
+                    print(f"Debug: expected_hash={expected_hash}")
+                    
+                    if provided_hash == expected_hash:
+                        # Check if session is still valid
+                        current_time = time.time()
+                        if current_time - login_time < self.session_timeout:
+                            # Restore session
+                            st.session_state.authenticated = True
+                            st.session_state.login_timestamp = login_time
+                            st.session_state.last_activity = current_time
+                            st.session_state.login_attempts = 0
+                            print("Debug: Session restored successfully")
+                            return True
+                        else:
+                            print("Debug: Session expired")
+                            self.clear_session_url()
                     else:
-                        # Session expired, clear URL
+                        print("Debug: Hash validation failed")
                         self.clear_session_url()
-                else:
-                    # Invalid hash, clear URL
+                except (ValueError, IndexError) as e:
+                    print(f"Debug: Error parsing session data: {e}")
                     self.clear_session_url()
-            except (ValueError, IndexError):
-                self.clear_session_url()
+            else:
+                print("Debug: No auth parameter found")
+        except Exception as e:
+            print(f"Debug: Error in restore_session_from_url: {e}")
         
         return False
     
