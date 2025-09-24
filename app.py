@@ -760,6 +760,15 @@ class ThreatModelingWebApp:
         # Check authentication first
         self.check_authentication()
         
+        # Auto-refresh for session timer (every 30 seconds)
+        if st.session_state.get('authenticated', False):
+            if 'timer_refresh' not in st.session_state:
+                st.session_state.timer_refresh = time.time()
+            
+            if time.time() - st.session_state.timer_refresh > 30:
+                st.session_state.timer_refresh = time.time()
+                st.rerun()
+        
         # Header - keep consistent color
         header_class = "main-header"
         
@@ -873,59 +882,23 @@ class ThreatModelingWebApp:
             # Session status and logout
             if st.session_state.get('authenticated', False):
                 remaining_time = self.get_session_time_remaining()
+                minutes = remaining_time // 60
+                seconds = remaining_time % 60
                 
-                # Live countdown timer
-                timer_html = f"""
-                <div id="session-timer" style="
-                    padding: 8px 12px;
-                    border-radius: 4px;
-                    font-weight: bold;
-                    text-align: center;
-                    margin: 8px 0;
-                ">
-                    <span id="timer-text">⏱️ Session: <span id="countdown">{remaining_time}</span>s</span>
-                </div>
+                # Auto-refresh every 30 seconds for live timer
+                if 'last_timer_update' not in st.session_state:
+                    st.session_state.last_timer_update = time.time()
                 
-                <script>
-                let timeLeft = {remaining_time};
-                const timerElement = document.getElementById('countdown');
-                const timerContainer = document.getElementById('session-timer');
-                const timerText = document.getElementById('timer-text');
+                if time.time() - st.session_state.last_timer_update > 30:
+                    st.session_state.last_timer_update = time.time()
+                    st.rerun()
                 
-                function updateTimer() {{
-                    if (timeLeft <= 0) {{
-                        timerText.innerHTML = '🔴 Session Expired';
-                        timerContainer.style.backgroundColor = '#fee';
-                        timerContainer.style.color = '#c53030';
-                        return;
-                    }}
-                    
-                    const minutes = Math.floor(timeLeft / 60);
-                    const seconds = timeLeft % 60;
-                    
-                    if (timeLeft > 300) {{
-                        timerContainer.style.backgroundColor = '#e8f5e8';
-                        timerContainer.style.color = '#2e7d32';
-                        timerText.innerHTML = `✅ Session: ${{minutes}}m ${{seconds}}s`;
-                    }} else if (timeLeft > 60) {{
-                        timerContainer.style.backgroundColor = '#fff3e0';
-                        timerContainer.style.color = '#e65100';
-                        timerText.innerHTML = `⚠️ Session: ${{minutes}}m ${{seconds}}s`;
-                    }} else {{
-                        timerContainer.style.backgroundColor = '#fee';
-                        timerContainer.style.color = '#c53030';
-                        timerText.innerHTML = `🔴 Session: ${{seconds}}s`;
-                    }}
-                    
-                    timeLeft--;
-                }}
-                
-                updateTimer();
-                setInterval(updateTimer, 1000);
-                </script>
-                """
-                
-                st.markdown(timer_html, unsafe_allow_html=True)
+                if remaining_time > 300:  # > 5 minutes
+                    st.success(f"✅ Session: {minutes}m {seconds}s")
+                elif remaining_time > 60:  # 1-5 minutes
+                    st.warning(f"⚠️ Session: {minutes}m {seconds}s")
+                else:  # < 1 minute
+                    st.error(f"🔴 Session: {seconds}s")
                 
                 if st.button("🚪 Logout", use_container_width=True):
                     self.logout()
