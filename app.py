@@ -878,6 +878,14 @@ class ThreatModelingWebApp:
                 st.session_state.show_methodology = True
                 st.rerun()
             
+            st.markdown("---")
+            st.markdown("### 🧪 Testing")
+            
+            # Session test link
+            if st.button("🧪 Test Session Persistence", use_container_width=True):
+                st.switch_page("pages/test_session_ui.py")
+            st.caption("Test if login sessions persist across page refreshes")
+            
 
             
 
