@@ -190,12 +190,16 @@ class ProfessionalHTMLFormatter:
         }}
         
         body {{
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
             line-height: 1.7;
             color: #1f2937;
             background: var(--background-gradient);
             min-height: 100vh;
             padding: 2rem;
+        }}
+        
+        *, *::before, *::after {{
+            font-family: inherit !important;
         }}
         
         .container {{
@@ -342,7 +346,7 @@ class ProfessionalHTMLFormatter:
             color: white;
             padding: 0.25rem 0.75rem;
             border-radius: 20px;
-            font-family: 'Monaco', 'Menlo', monospace;
+            font-family: 'Inter', 'Monaco', 'Menlo', monospace !important;
             font-size: 0.875rem;
             font-weight: 500;
             display: inline-block;
@@ -354,7 +358,7 @@ class ProfessionalHTMLFormatter:
             color: white;
             padding: 0.25rem 0.75rem;
             border-radius: 20px;
-            font-family: 'Monaco', 'Menlo', monospace;
+            font-family: 'Inter', 'Monaco', 'Menlo', monospace !important;
             font-size: 0.875rem;
             font-weight: 500;
             display: inline-block;
