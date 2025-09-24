@@ -25,20 +25,20 @@ class SimpleSessionManager:
             session_hash = self.generate_session_hash(login_time)
             
             # Update query parameters
-            st.experimental_set_query_params(
-                auth="true",
-                t=str(int(login_time)),
-                h=session_hash
-            )
+            st.query_params.update({
+                "auth": "true",
+                "t": str(int(login_time)),
+                "h": session_hash
+            })
     
     def restore_session_from_url(self):
         """Restore session from URL parameters"""
-        query_params = st.experimental_get_query_params()
+        query_params = st.query_params
         
-        if query_params.get('auth') == ['true']:
+        if query_params.get('auth') == 'true':
             try:
-                login_time = float(query_params.get('t', ['0'])[0])
-                provided_hash = query_params.get('h', [''])[0]
+                login_time = float(query_params.get('t', '0'))
+                provided_hash = query_params.get('h', '')
                 
                 # Validate hash
                 expected_hash = self.generate_session_hash(login_time)
@@ -65,7 +65,7 @@ class SimpleSessionManager:
     
     def clear_session_url(self):
         """Clear session from URL parameters"""
-        st.experimental_set_query_params()
+        st.query_params.clear()
     
     def update_session_activity(self):
         """Update session activity"""
