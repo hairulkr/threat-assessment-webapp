@@ -221,10 +221,10 @@ class ThreatModelingWebApp:
         from agents.error_handler import AgentErrorHandler
         
         agents = {
-            'product': ProductInfoAgent(llm, 'ProductAgent'),
-            'intelligence': IntelligenceAgent(llm, 'IntelligenceAgent'),
-            'controls': ControlsAgent(llm, 'ControlsAgent'),
-            'report': ReportAgent(llm, 'ReportAgent')
+            'product': ProductInfoAgent(llm),
+            'intelligence': IntelligenceAgent(llm),
+            'controls': ControlsAgent(llm),
+            'report': ReportAgent(llm)
         }
         
         # Progress tracking
@@ -1042,7 +1042,6 @@ class ThreatModelingWebApp:
                                 help=help_text
                             ):
                                 st.session_state.selected_product = name
-                                st.session_state.product_search = name
                                 st.rerun()
                 
                 elif len(product_input) > 2:
