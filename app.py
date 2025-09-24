@@ -877,13 +877,7 @@ class ThreatModelingWebApp:
                 st.session_state.show_methodology = True
                 st.rerun()
             
-            st.markdown("---")
-            st.markdown("### 🧪 Testing")
-            
-            # Session test link
-            st.markdown("**🧪 Session Test:**")
-            st.markdown("[Test Session Persistence →](pages/test_session_ui)", unsafe_allow_html=False)
-            st.caption("Click to test if login sessions persist across page refreshes")
+
             
 
             
