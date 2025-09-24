@@ -690,20 +690,23 @@ class ThreatModelingWebApp:
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
                 with st.container(border=True):
-                    password = st.text_input(
-                        "Enter password:", 
-                        type="password", 
-                        key="login_password",
-                        help="Enter your access password",
-                        autocomplete="current-password"
-                    )
+                    with st.form("login_form"):
+                        password = st.text_input(
+                            "Enter password:", 
+                            type="password", 
+                            key="login_password",
+                            help="Enter your access password",
+                            autocomplete="current-password"
+                        )
+                        
+                        # Show remaining attempts
+                        remaining_attempts = max(0, 5 - st.session_state.login_attempts)
+                        if st.session_state.login_attempts > 0:
+                            st.warning(f"⚠️ {remaining_attempts} attempts remaining")
+                        
+                        login_submitted = st.form_submit_button("🚀 Login", type="primary", use_container_width=True)
                     
-                    # Show remaining attempts
-                    remaining_attempts = max(0, 5 - st.session_state.login_attempts)
-                    if st.session_state.login_attempts > 0:
-                        st.warning(f"⚠️ {remaining_attempts} attempts remaining")
-                    
-                    if st.button("🚀 Login", type="primary", use_container_width=True):
+                    if login_submitted:
                         try:
                             app_password = st.secrets["APP_PASSWORD"]
                         except:
