@@ -180,7 +180,13 @@ class ThreatModelingWebApp:
             'assessment_running': False,
             'usage_tracker': DailyUsageTracker(),
             'show_methodology': False,
-            'selected_llm_provider': 'gemini-2.0-flash'
+            'selected_llm_provider': 'gemini-2.0-flash',
+            # Session management
+            'authenticated': False,
+            'login_attempts': 0,
+            'login_lockout_time': 0,
+            'login_timestamp': 0,
+            'last_activity': 0
         }
         
         for key, value in defaults.items():
@@ -627,8 +633,6 @@ class ThreatModelingWebApp:
             
         current_time = time.time()
         last_activity = st.session_state.get('last_activity', 0)
-        session_timeout = 1800  # 30 minutes
-        
         session_timeout = 7200  # 2 hours
         remaining = session_timeout - (current_time - last_activity)
         return max(0, int(remaining))
@@ -654,9 +658,7 @@ class ThreatModelingWebApp:
         if 'last_activity' not in st.session_state:
             st.session_state.last_activity = 0
             
-        # Auto-authenticate for development (remove in production)
-        # For now, just extend session timeout to 2 hours for better UX
-        pass
+        # Session management - no auto-authentication
             
         # Check if already authenticated and session is valid
         if self.check_session_timeout():
@@ -906,12 +908,19 @@ class ThreatModelingWebApp:
             st.header("🎯 Product Assessment")
             
             # Product search and suggestion
+            # Use selected product if available, otherwise use current input
+            default_value = st.session_state.get('selected_product', '')
             product_input = st.text_input(
                 "Enter Product/System Name:",
+                value=default_value,
                 placeholder="e.g., Visual Studio Code, Apache Tomcat, WordPress",
                 help="Enter the name of the software product you want to assess",
                 key="product_search"
             )
+            
+            # Clear selected_product after it's been used in the input
+            if st.session_state.get('selected_product') and product_input == st.session_state.get('selected_product'):
+                st.session_state.selected_product = ''
             
             # CPE-based product suggestions
             if product_input and len(product_input) > 2:
@@ -976,6 +985,7 @@ class ThreatModelingWebApp:
                                 help=help_text
                             ):
                                 st.session_state.selected_product = name
+                                st.session_state.product_search = name
                                 st.rerun()
                 
                 elif len(product_input) > 2:
@@ -985,15 +995,12 @@ class ThreatModelingWebApp:
                     """)
             
             # Assessment form
-            if product_input or st.session_state.get('selected_product'):
+            if product_input:
                 with st.form("assessment_form"):
-                    # Use selected product or user input
-                    final_product = st.session_state.get('selected_product', product_input)
-                    
                     # Show the product name that will be assessed (editable)
                     final_product = st.text_input(
                         "Product to assess:",
-                        value=final_product,
+                        value=product_input,
                         disabled=False,
                         help="You can edit this product name before starting the assessment",
                         key="final_product_input"
@@ -1033,9 +1040,7 @@ class ThreatModelingWebApp:
                     st.warning("⏳ Assessment already in progress. Please wait for it to complete.")
                     st.stop()
                     
-                # Clear selected product after using it
-                if 'selected_product' in st.session_state:
-                    del st.session_state['selected_product']
+                # Product name is now directly from the form input
                 if not self.check_rate_limit():
                     st.stop()
                 if not self.validate_input(product_name):
