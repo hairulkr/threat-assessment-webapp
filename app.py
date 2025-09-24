@@ -664,7 +664,6 @@ class ThreatModelingWebApp:
         # Try to restore session from URL parameters on every check
         if not st.session_state.get('authenticated', False):
             if self.session_manager.restore_session_from_url():
-                st.success("✅ Session restored")
                 st.rerun()
             
         # Check if already authenticated and session is valid
@@ -882,9 +881,9 @@ class ThreatModelingWebApp:
             st.markdown("### 🧪 Testing")
             
             # Session test link
-            if st.button("🧪 Test Session Persistence", use_container_width=True):
-                st.switch_page("pages/test_session_ui.py")
-            st.caption("Test if login sessions persist across page refreshes")
+            st.markdown("**🧪 Session Test:**")
+            st.markdown("[Test Session Persistence →](pages/test_session_ui)", unsafe_allow_html=False)
+            st.caption("Click to test if login sessions persist across page refreshes")
             
 
             

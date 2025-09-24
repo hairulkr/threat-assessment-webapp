@@ -15,7 +15,9 @@ class SimpleSessionManager:
     
     def generate_session_hash(self, timestamp: float) -> str:
         """Generate session hash for validation"""
-        data = f"{timestamp}:{self.secret_key}"
+        # Use integer timestamp to match what's stored in URL
+        int_timestamp = int(timestamp)
+        data = f"{int_timestamp}:{self.secret_key}"
         return hashlib.md5(data.encode()).hexdigest()[:16]
     
     def save_session_to_url(self):
@@ -60,7 +62,7 @@ class SimpleSessionManager:
                         self.clear_session_url()
                 except (ValueError, IndexError):
                     self.clear_session_url()
-        except Exception as e:
+        except Exception:
             pass
         
         return False
