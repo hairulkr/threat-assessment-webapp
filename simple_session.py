@@ -36,21 +36,13 @@ class SimpleSessionManager:
         try:
             query_params = st.query_params
             
-            # Debug: Show what we found
-            if query_params:
-                print(f"Debug: Found query params: {dict(query_params)}")
-            
             if query_params.get('auth') == 'true':
-                print("Debug: Found auth=true")
                 try:
                     login_time = float(query_params.get('t', '0'))
                     provided_hash = query_params.get('h', '')
                     
-                    print(f"Debug: login_time={login_time}, provided_hash={provided_hash}")
-                    
                     # Validate hash
                     expected_hash = self.generate_session_hash(login_time)
-                    print(f"Debug: expected_hash={expected_hash}")
                     
                     if provided_hash == expected_hash:
                         # Check if session is still valid
@@ -61,21 +53,15 @@ class SimpleSessionManager:
                             st.session_state.login_timestamp = login_time
                             st.session_state.last_activity = current_time
                             st.session_state.login_attempts = 0
-                            print("Debug: Session restored successfully")
                             return True
                         else:
-                            print("Debug: Session expired")
                             self.clear_session_url()
                     else:
-                        print("Debug: Hash validation failed")
                         self.clear_session_url()
-                except (ValueError, IndexError) as e:
-                    print(f"Debug: Error parsing session data: {e}")
+                except (ValueError, IndexError):
                     self.clear_session_url()
-            else:
-                print("Debug: No auth parameter found")
         except Exception as e:
-            print(f"Debug: Error in restore_session_from_url: {e}")
+            pass
         
         return False
     
