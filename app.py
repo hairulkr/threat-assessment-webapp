@@ -215,12 +215,15 @@ class ThreatModelingWebApp:
             st.error(f"❌ {provider.title()} API key not found in secrets or environment variables")
             return None, None
         
-        # Initialize streamlined 4-agent architecture
+        # Initialize enhanced 4-agent architecture with monitoring
+        from agents.agent_monitor import AGENT_MONITOR
+        from agents.error_handler import AgentErrorHandler
+        
         agents = {
-            'product': ProductInfoAgent(llm),
-            'intelligence': IntelligenceAgent(llm),  # Consolidated threat intel + context + risk
-            'controls': ControlsAgent(llm),
-            'report': ReportAgent(llm)  # Enhanced with integrated review
+            'product': ProductInfoAgent(llm, 'ProductAgent'),
+            'intelligence': IntelligenceAgent(llm, 'IntelligenceAgent'),
+            'controls': ControlsAgent(llm, 'ControlsAgent'),
+            'report': ReportAgent(llm, 'ReportAgent')
         }
         
         # Progress tracking
@@ -241,17 +244,18 @@ class ThreatModelingWebApp:
             progress_bar.progress(10)
             
             with st.spinner("🔍 Analyzing product information..."):
-                try:
-                    product_info = await asyncio.wait_for(
-                        agents['product'].gather_info(product_name), 
-                        timeout=30
-                    )
-                except asyncio.TimeoutError:
-                    st.error("Product analysis timed out. Please try again.")
+                product_result = await AgentErrorHandler.execute_with_retry(
+                    'product',
+                    lambda data: agents['product'].gather_info(data['product_name']),
+                    {'product_name': product_name},
+                    lambda data: self._fallback_product_info(data['product_name'])
+                )
+                
+                if not product_result.success:
+                    st.error(f"Product analysis failed: {product_result.error}")
                     return None, None
-                except Exception as e:
-                    st.error(f"Product analysis failed: {str(e)}")
-                    return None, None
+                
+                product_info = product_result.data
             
             status_box.success("Product information gathered successfully")
             all_data["product_info"] = product_info
@@ -287,17 +291,17 @@ class ThreatModelingWebApp:
             intel_status = st.empty()
             intel_status.info("🧠 **Comprehensive Analysis:** Threat intelligence + context + risk assessment in single analysis...")
             
-            try:
-                comprehensive_result = await asyncio.wait_for(
-                    agents['intelligence'].comprehensive_analysis(product_info),
-                    timeout=90
-                )
-            except asyncio.TimeoutError:
-                st.error("Comprehensive analysis timed out. Please try again.")
+            intel_result = await AgentErrorHandler.execute_with_retry(
+                'intelligence',
+                lambda data: agents['intelligence'].comprehensive_analysis(data['product_info']),
+                {'product_info': product_info}
+            )
+            
+            if not intel_result.success:
+                st.error(f"Comprehensive analysis failed: {intel_result.error}")
                 return None, None
-            except Exception as e:
-                st.error(f"Comprehensive analysis failed: {str(e)}")
-                return None, None
+            
+            comprehensive_result = intel_result.data
             
             intel_status.empty()
             status_box.success("✅ **Comprehensive Analysis Complete:** Threat intelligence, context, and risk assessment finished")
@@ -603,6 +607,16 @@ class ThreatModelingWebApp:
         <p><em>Note: This is a basic report generated due to processing constraints. For detailed analysis, please try the assessment again.</em></p>
         """
     
+    async def _fallback_product_info(self, product_name: str) -> Dict[str, Any]:
+        """Fallback product information when main analysis fails"""
+        return {
+            'name': product_name,
+            'description': f'Basic analysis for {product_name}',
+            'technologies': ['Unknown'],
+            'components': ['Application'],
+            'fallback_used': True
+        }
+    
 
     
     def check_session_timeout(self):
@@ -879,6 +893,34 @@ class ThreatModelingWebApp:
             if st.button("📋 View Methodology", use_container_width=True):
                 st.session_state.show_methodology = True
                 st.rerun()
+            
+            st.markdown("---")
+            st.markdown("### 📈 Performance")
+            
+            # Agent performance monitoring
+            from agents.agent_monitor import AGENT_MONITOR
+            performance_summary = AGENT_MONITOR.get_performance_summary()
+            
+            if performance_summary.get('status') != 'NO_DATA':
+                st.metric(
+                    "Success Rate", 
+                    f"{performance_summary['overall_success_rate']}%",
+                    help="Overall agent success rate"
+                )
+                
+                with st.expander("🔍 Agent Details"):
+                    agent_status = AGENT_MONITOR.get_agent_status()
+                    for agent_name, status in agent_status.items():
+                        status_icon = {
+                            'HEALTHY': '✅',
+                            'WARNING': '⚠️', 
+                            'CRITICAL': '❌',
+                            'UNKNOWN': '❔'
+                        }.get(status['status'], '❔')
+                        
+                        st.write(f"{status_icon} **{agent_name}**: {status['success_rate']}% ({status['average_time']}s avg)")
+            else:
+                st.info("No performance data yet")
             
 
             
