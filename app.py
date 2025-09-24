@@ -12,6 +12,7 @@ from datetime import datetime
 import base64
 import time
 import streamlit.components.v1
+from simple_session import SimpleSessionManager
 
 # Import required modules
 try:
@@ -164,6 +165,7 @@ class ThreatModelingWebApp:
     """Streamlit web interface for threat modeling"""
     
     def __init__(self):
+        self.session_manager = SimpleSessionManager()
         self.setup_session_state()
         
     def setup_session_state(self):
@@ -643,7 +645,8 @@ class ThreatModelingWebApp:
         st.session_state.login_timestamp = 0
         st.session_state.last_activity = 0
         
-        # Session cleared from Streamlit session state
+        # Clear session from URL
+        self.session_manager.clear_session_url()
     
     def check_authentication(self):
         """Password authentication with session management and brute force protection"""
@@ -658,10 +661,17 @@ class ThreatModelingWebApp:
         if 'last_activity' not in st.session_state:
             st.session_state.last_activity = 0
             
-        # Session management - no auto-authentication
+        # Try to restore session from URL parameters
+        if not st.session_state.get('authenticated', False):
+            if self.session_manager.restore_session_from_url():
+                st.success("✅ Session restored")
+                time.sleep(1)
+                st.rerun()
             
         # Check if already authenticated and session is valid
         if self.check_session_timeout():
+            # Update session activity
+            self.session_manager.update_session_activity()
             return  # Already logged in with valid session
         
         if not st.session_state.authenticated:
@@ -712,7 +722,8 @@ class ThreatModelingWebApp:
                             st.session_state.login_timestamp = current_time
                             st.session_state.last_activity = current_time
                             
-                            # Session stored in Streamlit session state
+                            # Save session to URL
+                            self.session_manager.save_session_to_url()
                             
                             st.rerun()
                         else:
