@@ -185,22 +185,49 @@ class ReportAgent:
         """Generate attack flow diagram from content that mentions attack phases"""
         import html
         
-        # Look for attack phases in content
-        phase_patterns = [
-            r'(Initial Access|Execution|Persistence|Impact|Privilege Escalation|Defense Evasion):\s*([^\n]+)',
-            r'`(T\d{4})`[^-]*-\s*([^\n]+)',
-            r'(\w+\s+\w*):\s*([^`\n]+)`(T\d{4})`'
-        ]
+        # Look for CVEs and create attack flow based on them
+        cve_pattern = r'(CVE-\d{4}-\d{4,})[^\n]*([^\n]{50,100})'
+        cve_matches = re.finditer(cve_pattern, content, re.IGNORECASE)
         
         phases = []
-        for pattern in phase_patterns:
-            matches = re.finditer(pattern, content, re.IGNORECASE)
-            for match in matches:
-                if len(match.groups()) >= 2:
-                    phase_name = match.group(1).strip()[:30]
-                    description = match.group(2).strip()[:50]
-                    mitre_id = match.group(3) if len(match.groups()) > 2 else 'T1059'
+        mitre_techniques = re.findall(r'T\d{4}(?:\.\d{3})?', content)
+        
+        # Extract attack phases from CVE descriptions
+        for i, match in enumerate(cve_matches):
+            if i >= 4:  # Limit to 4 CVEs
+                break
+            cve_id = match.group(1)
+            description = match.group(2).strip()[:40]
+            mitre_id = mitre_techniques[i] if i < len(mitre_techniques) else f'T{1000 + i:04d}'
+            
+            # Map CVE to attack phase
+            if 'remote code execution' in description.lower() or 'rce' in description.lower():
+                phase_name = 'Code Execution'
+            elif 'privilege' in description.lower():
+                phase_name = 'Privilege Escalation'
+            elif 'buffer overflow' in description.lower():
+                phase_name = 'Memory Corruption'
+            else:
+                phase_name = f'Attack Vector {i+1}'
+            
+            phases.append((phase_name, cve_id, mitre_id))
+        
+        # If no CVEs found, look for attack phases directly
+        if not phases:
+            phase_patterns = [
+                r'(Initial Access|Execution|Persistence|Impact|Privilege Escalation|Defense Evasion):\s*([^\n]+)',
+                r'(\w+\s+\w*):\s*([^`\n]+)'
+            ]
+            
+            for pattern in phase_patterns:
+                matches = re.finditer(pattern, content, re.IGNORECASE)
+                for match in matches:
+                    phase_name = match.group(1).strip()[:20]
+                    description = match.group(2).strip()[:30]
+                    mitre_id = mitre_techniques[len(phases)] if len(phases) < len(mitre_techniques) else 'T1059'
                     phases.append((phase_name, description, mitre_id))
+                    if len(phases) >= 4:
+                        break
         
         if not phases:
             return ""
@@ -209,9 +236,9 @@ class ReportAgent:
         safe_product_name = html.escape(product_name[:25])
         mermaid = f"graph TD\n    Target[\"🎯 {safe_product_name}\"]\n"
         
-        for i, (phase_name, desc, mitre_id) in enumerate(phases[:5], 1):
+        for i, (phase_name, desc, mitre_id) in enumerate(phases[:4], 1):
             node_id = f"Phase{i}"
-            clean_phase = html.escape(phase_name[:20])
+            clean_phase = html.escape(phase_name[:15])
             clean_mitre = html.escape(mitre_id)
             
             mermaid += f"    {node_id}[\"{clean_phase}\\n{clean_mitre}\"]\n"

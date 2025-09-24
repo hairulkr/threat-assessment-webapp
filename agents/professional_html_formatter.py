@@ -57,6 +57,9 @@ class ProfessionalHTMLFormatter:
     
     def _postprocess_html(self, html_content: str) -> str:
         """Post-process HTML for professional styling"""
+        # Fix broken table formatting first
+        html_content = self._fix_table_formatting(html_content)
+        
         # Add CSS classes to elements
         html_content = re.sub(r'<h1>', r'<h1 class="main-header">', html_content)
         html_content = re.sub(r'<h2>', r'<h2 class="section-header">', html_content)
@@ -87,6 +90,74 @@ class ProfessionalHTMLFormatter:
                              r'<span class="severity-\1">\1</span>', html_content, flags=re.IGNORECASE)
         
         return html_content
+    
+    def _fix_table_formatting(self, content: str) -> str:
+        """Fix broken table formatting from LLM output"""
+        # Look for broken table patterns like: # CVE ID Title Severity # cve-2022-30129 ...
+        table_pattern = r'#\s*(CVE ID|CVE|Vulnerability).*?#\s*(cve-[\d-]+.*?)(?=\n\n|\n#|$)'
+        
+        def fix_table_match(match):
+            table_content = match.group(0)
+            
+            # Split into lines and clean
+            lines = [line.strip() for line in table_content.split('\n') if line.strip()]
+            
+            if len(lines) < 2:
+                return table_content
+            
+            # Extract header
+            header_line = lines[0].replace('#', '').strip()
+            headers = [h.strip() for h in re.split(r'\s{2,}|\t', header_line) if h.strip()]
+            
+            if not headers:
+                headers = ['CVE ID', 'Title', 'Severity', 'CVSS Score', 'Source', 'Exploit Available', 'Description']
+            
+            # Build proper table
+            table_html = '<table class="threat-table">\n<thead>\n<tr>\n'
+            for header in headers:
+                table_html += f'<th>{header}</th>\n'
+            table_html += '</tr>\n</thead>\n<tbody>\n'
+            
+            # Process data rows
+            for line in lines[1:]:
+                if not line or line.startswith('#'):
+                    continue
+                    
+                # Clean and split row data
+                row_data = line.replace('#', '').strip()
+                
+                # Try to extract CVE ID and other fields
+                cve_match = re.search(r'(cve-[\d-]+)', row_data, re.IGNORECASE)
+                if cve_match:
+                    cve_id = cve_match.group(1).upper()
+                    remaining = row_data.replace(cve_match.group(1), '').strip()
+                    
+                    # Split remaining fields
+                    fields = [f.strip() for f in re.split(r'\s{2,}|\t', remaining) if f.strip()]
+                    
+                    table_html += '<tr>\n'
+                    table_html += f'<td><span class="cve-badge">{cve_id}</span></td>\n'
+                    
+                    # Add remaining fields
+                    for i, field in enumerate(fields[:6]):
+                        if i == 1 and field.upper() in ['HIGH', 'MEDIUM', 'LOW', 'CRITICAL']:
+                            table_html += f'<td><span class="severity-{field.upper()}">{field}</span></td>\n'
+                        else:
+                            table_html += f'<td>{field}</td>\n'
+                    
+                    # Fill missing columns
+                    for _ in range(len(headers) - len(fields) - 1):
+                        table_html += '<td>-</td>\n'
+                    
+                    table_html += '</tr>\n'
+            
+            table_html += '</tbody>\n</table>\n'
+            return table_html
+        
+        # Apply table fixes
+        content = re.sub(table_pattern, fix_table_match, content, flags=re.DOTALL | re.IGNORECASE)
+        
+        return content
     
     def create_professional_template(self, report_content: str, product_name: str) -> str:
         """Create a professional HTML document with advanced styling"""
