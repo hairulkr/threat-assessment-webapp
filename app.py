@@ -12,6 +12,7 @@ from datetime import datetime
 import base64
 import time
 import streamlit.components.v1
+from typing import Dict, Any
 from simple_session import SimpleSessionManager
 
 # Import required modules
