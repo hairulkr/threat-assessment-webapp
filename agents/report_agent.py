@@ -5,6 +5,7 @@ from typing import Dict, Any
 from datetime import datetime
 # from mcp_diagram_generator import MCPDiagramGenerator  # No longer needed for batch processing
 from .report_formatter import ReportFormatter
+from .professional_html_formatter import ProfessionalHTMLFormatter
 from .scenario_parser import ScenarioParser
 from .prompt_templates import PromptTemplates
 
@@ -16,6 +17,7 @@ class ReportAgent:
         self.reports_dir = "reports"
         # self.diagram_generator = MCPDiagramGenerator(self.llm)  # No longer needed
         self.formatter = ReportFormatter()
+        self.professional_formatter = ProfessionalHTMLFormatter()
         self.scenario_parser = ScenarioParser()
         os.makedirs(self.reports_dir, exist_ok=True)
     
@@ -252,7 +254,9 @@ class ReportAgent:
             
             # Clean and normalize LLM response
             report_content = self.formatter.clean_llm_response(report_content)
-            report_content = self.formatter.normalize_html_structure(report_content)
+            
+            # Convert to professional HTML format
+            report_content = self.professional_formatter.convert_markdown_to_html(report_content)
             
             # Generate diagrams for scenarios using batch processing
             threats = all_data.get('threats', [])
@@ -318,8 +322,8 @@ class ReportAgent:
             if not report_content or report_content.strip() == "":
                 report_content = "<h1>Report Generation Error</h1><p>No content was generated. Please try again.</p>"
             
-            # Create complete HTML document
-            html_template = self.formatter.create_html_template(report_content, product_name)
+            # Create complete professional HTML document
+            html_template = self.professional_formatter.create_professional_template(report_content, product_name)
             
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(html_template)
