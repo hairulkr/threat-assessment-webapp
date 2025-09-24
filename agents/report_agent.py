@@ -161,7 +161,15 @@ class ReportAgent:
         # Find unique scenarios using the dedicated parser
         scenarios_found = self.scenario_parser.find_scenarios(report_content)
         
+        # If no scenarios found, try to extract attack flow from content
         if not scenarios_found:
+            attack_flow_diagram = self._generate_attack_flow_from_content(report_content, product_name)
+            if attack_flow_diagram:
+                # Insert diagram after first heading
+                heading_match = re.search(r'<h[1-3][^>]*>.*?</h[1-3]>', report_content)
+                if heading_match:
+                    insert_pos = heading_match.end()
+                    report_content = report_content[:insert_pos] + "\n" + attack_flow_diagram + report_content[insert_pos:]
             return report_content
         
         # Generate all diagrams in batch
@@ -172,6 +180,61 @@ class ReportAgent:
             report_content = self.scenario_parser.replace_placeholders(report_content, scenario_id, diagram_html)
         
         return report_content
+    
+    def _generate_attack_flow_from_content(self, content: str, product_name: str) -> str:
+        """Generate attack flow diagram from content that mentions attack phases"""
+        import html
+        
+        # Look for attack phases in content
+        phase_patterns = [
+            r'(Initial Access|Execution|Persistence|Impact|Privilege Escalation|Defense Evasion):\s*([^\n]+)',
+            r'`(T\d{4})`[^-]*-\s*([^\n]+)',
+            r'(\w+\s+\w*):\s*([^`\n]+)`(T\d{4})`'
+        ]
+        
+        phases = []
+        for pattern in phase_patterns:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                if len(match.groups()) >= 2:
+                    phase_name = match.group(1).strip()[:30]
+                    description = match.group(2).strip()[:50]
+                    mitre_id = match.group(3) if len(match.groups()) > 2 else 'T1059'
+                    phases.append((phase_name, description, mitre_id))
+        
+        if not phases:
+            return ""
+        
+        # Generate mermaid diagram
+        safe_product_name = html.escape(product_name[:25])
+        mermaid = f"graph TD\n    Target[\"🎯 {safe_product_name}\"]\n"
+        
+        for i, (phase_name, desc, mitre_id) in enumerate(phases[:5], 1):
+            node_id = f"Phase{i}"
+            clean_phase = html.escape(phase_name[:20])
+            clean_mitre = html.escape(mitre_id)
+            
+            mermaid += f"    {node_id}[\"{clean_phase}\\n{clean_mitre}\"]\n"
+            
+            if i == 1:
+                mermaid += f"    Target --> {node_id}\n"
+            else:
+                prev_node = f"Phase{i-1}"
+                mermaid += f"    {prev_node} --> {node_id}\n"
+        
+        mermaid += """\n    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px
+    classDef critical fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    classDef target fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    
+    class Target target"""
+        
+        return f"""
+<div class="diagram-container">
+    <h3>🎯 Attack Flow Analysis</h3>
+    <div class="mermaid" id="diagram-attack-flow">
+        {mermaid}
+    </div>
+</div>"""
     
     def create_fallback_diagram(self, scenario_id: str, scenario_title: str, product_name: str) -> str:
         """Create a simple fallback diagram"""

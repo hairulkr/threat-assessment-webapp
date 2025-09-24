@@ -66,8 +66,12 @@ class ProfessionalHTMLFormatter:
         # Style tables
         html_content = re.sub(r'<table>', r'<table class="threat-table">', html_content)
         
-        # Style code blocks for MITRE techniques
+        # Style code blocks for MITRE techniques - handle multiple formats
         html_content = re.sub(r'<code class="mitre-technique">(T\d{4}(?:\.\d{3})?)</code>', 
+                             r'<span class="mitre-badge">\1</span>', html_content)
+        html_content = re.sub(r'`(T\d{4}(?:\.\d{3})?)`\{?\.?mitre-technique\}?', 
+                             r'<span class="mitre-badge">\1</span>', html_content)
+        html_content = re.sub(r'(?<!<span class="mitre-badge">)\b(T\d{4}(?:\.\d{3})?)\b(?!</span>)', 
                              r'<span class="mitre-badge">\1</span>', html_content)
         
         # Style CVE references - handle multiple formats
