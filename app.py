@@ -760,14 +760,7 @@ class ThreatModelingWebApp:
         # Check authentication first
         self.check_authentication()
         
-        # Auto-refresh for session timer (every 30 seconds)
-        if st.session_state.get('authenticated', False):
-            if 'timer_refresh' not in st.session_state:
-                st.session_state.timer_refresh = time.time()
-            
-            if time.time() - st.session_state.timer_refresh > 30:
-                st.session_state.timer_refresh = time.time()
-                st.rerun()
+
         
         # Header - keep consistent color
         header_class = "main-header"
@@ -876,33 +869,7 @@ class ThreatModelingWebApp:
             </div>
             """, unsafe_allow_html=True)
             
-            st.markdown("---")
-            st.markdown("### 🔐 Session")
-            
-            # Session status and logout
-            if st.session_state.get('authenticated', False):
-                remaining_time = self.get_session_time_remaining()
-                minutes = remaining_time // 60
-                seconds = remaining_time % 60
-                
-                # Auto-refresh every 30 seconds for live timer
-                if 'last_timer_update' not in st.session_state:
-                    st.session_state.last_timer_update = time.time()
-                
-                if time.time() - st.session_state.last_timer_update > 30:
-                    st.session_state.last_timer_update = time.time()
-                    st.rerun()
-                
-                if remaining_time > 300:  # > 5 minutes
-                    st.success(f"✅ Session: {minutes}m {seconds}s")
-                elif remaining_time > 60:  # 1-5 minutes
-                    st.warning(f"⚠️ Session: {minutes}m {seconds}s")
-                else:  # < 1 minute
-                    st.error(f"🔴 Session: {seconds}s")
-                
-                if st.button("🚪 Logout", use_container_width=True):
-                    self.logout()
-                    st.rerun()
+
             
             st.markdown("---")
             st.markdown("### 📚 Documentation")
@@ -911,40 +878,6 @@ class ThreatModelingWebApp:
             if st.button("📋 View Methodology", use_container_width=True):
                 st.session_state.show_methodology = True
                 st.rerun()
-            
-            st.markdown("---")
-            st.markdown("### 📈 Performance")
-            
-            # Agent performance monitoring
-            from agents.agent_monitor import AGENT_MONITOR
-            performance_summary = AGENT_MONITOR.get_performance_summary()
-            
-            if performance_summary.get('status') != 'NO_DATA':
-                st.metric(
-                    "Success Rate", 
-                    f"{performance_summary['overall_success_rate']}%",
-                    help="Overall agent success rate"
-                )
-                
-                with st.expander("🔍 Agent Details"):
-                    agent_status = AGENT_MONITOR.get_agent_status()
-                    for agent_name, status in agent_status.items():
-                        status_icon = {
-                            'HEALTHY': '✅',
-                            'WARNING': '⚠️', 
-                            'CRITICAL': '❌',
-                            'UNKNOWN': '❔'
-                        }.get(status['status'], '❔')
-                        
-                        st.write(f"{status_icon} **{agent_name}**: {status['success_rate']}% ({status['average_time']}s avg)")
-            else:
-                st.info("No performance data yet")
-            
-
-            
-
-            
-
             
             if st.session_state.get('show_methodology', False):
                 if st.button("❌ Close Methodology", use_container_width=True):
