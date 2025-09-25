@@ -79,8 +79,8 @@ class ReportAgent:
                     diagrams[scenario_id] = diagram_html
                     print(f"✅ Batch diagram generated for Scenario {scenario_id}")
                 else:
-                    diagrams[scenario_id] = self.create_fallback_diagram(scenario_id, scenario_title, product_name)
-                    print(f"🔄 Using fallback diagram for Scenario {scenario_id}")
+                    diagrams[scenario_id] = self.create_fallback_diagram(scenario_id, scenario_title, product_name, threats)
+                    print(f"🔄 Using intel-based fallback diagram for Scenario {scenario_id}")
             
             return diagrams
             
@@ -89,7 +89,7 @@ class ReportAgent:
             # Fallback to individual diagrams for each scenario
             diagrams = {}
             for scenario_id, scenario_title in scenarios_found:
-                diagrams[scenario_id] = self.create_fallback_diagram(scenario_id, scenario_title, product_name)
+                diagrams[scenario_id] = self.create_fallback_diagram(scenario_id, scenario_title, product_name, threats)
             return diagrams
     
     def _extract_phases_from_batch_response(self, response: str, scenario_id: str) -> list:
@@ -123,7 +123,7 @@ class ReportAgent:
         safe_scenario_id = html.escape(str(scenario_id))
         
         if not phases:
-            return self.create_fallback_diagram(scenario_id, "Unknown", product_name)
+            return self.create_fallback_diagram(scenario_id, "Unknown", product_name, None)
         
         # Build mermaid diagram
         mermaid = f"graph TD\n    Target[\"🎯 {safe_product_name}\"]\n"
@@ -163,7 +163,7 @@ class ReportAgent:
         
         # If no scenarios found, try to extract attack flow from content
         if not scenarios_found:
-            attack_flow_diagram = self._generate_attack_flow_from_content(report_content, product_name)
+            attack_flow_diagram = self._generate_attack_flow_from_content(report_content, product_name, threats)
             if attack_flow_diagram:
                 # Insert diagram after first heading
                 heading_match = re.search(r'<h[1-3][^>]*>.*?</h[1-3]>', report_content)
@@ -181,7 +181,49 @@ class ReportAgent:
         
         return report_content
     
-    def _generate_attack_flow_from_content(self, content: str, product_name: str) -> str:
+    def _extract_techniques_from_threats(self, threats) -> list:
+        """Extract MITRE techniques from threat intelligence dynamically"""
+        techniques = []
+        
+        for threat in threats[:4]:  # Limit to 4 threats
+            cve_id = threat.get('cve_id', '')
+            title = threat.get('title', '').lower()
+            description = threat.get('description', '').lower()
+            
+            # Map threat characteristics to MITRE techniques
+            if 'remote code execution' in title or 'rce' in title:
+                techniques.append(('Remote Code Execution', 'T1190', 'Exploit Public-Facing Application'))
+            elif 'privilege escalation' in title or 'elevation' in title:
+                techniques.append(('Privilege Escalation', 'T1068', 'Exploitation for Privilege Escalation'))
+            elif 'buffer overflow' in title or 'memory corruption' in title:
+                techniques.append(('Memory Corruption', 'T1055', 'Process Injection'))
+            elif 'authentication' in title or 'bypass' in title:
+                techniques.append(('Credential Access', 'T1110', 'Brute Force'))
+            elif 'denial of service' in title or 'dos' in title:
+                techniques.append(('Impact', 'T1499', 'Endpoint Denial of Service'))
+            elif 'information disclosure' in title or 'leak' in title:
+                techniques.append(('Collection', 'T1005', 'Data from Local System'))
+            else:
+                # Default based on severity
+                severity = threat.get('severity', 'MEDIUM')
+                if severity in ['CRITICAL', 'HIGH']:
+                    techniques.append(('Initial Access', 'T1190', 'Exploit Public-Facing Application'))
+                else:
+                    techniques.append(('Execution', 'T1059', 'Command and Scripting Interpreter'))
+        
+        # Ensure we have at least 4 phases
+        if len(techniques) < 4:
+            default_phases = [
+                ('Initial Access', 'T1190', 'Exploit Public-Facing Application'),
+                ('Execution', 'T1059.003', 'Windows Command Shell'),
+                ('Persistence', 'T1053.005', 'Scheduled Task'),
+                ('Impact', 'T1486', 'Data Encrypted for Impact')
+            ]
+            techniques.extend(default_phases[len(techniques):4])
+        
+        return techniques[:4]
+    
+    def _generate_attack_flow_from_content(self, content: str, product_name: str, threats=None) -> str:
         """Generate attack flow diagram from content that mentions attack phases"""
         import html
         
@@ -270,43 +312,30 @@ class ReportAgent:
     </div>
 </div>"""
     
-    def create_fallback_diagram(self, scenario_id: str, scenario_title: str, product_name: str) -> str:
-        """Create a specific fallback diagram with real attack techniques"""
+    def create_fallback_diagram(self, scenario_id: str, scenario_title: str, product_name: str, threats=None) -> str:
+        """Create dynamic fallback diagram based on threat intelligence"""
         import html
         safe_product_name = html.escape(product_name[:30])
         safe_scenario_id = html.escape(str(scenario_id))
         
-        # Map scenario types to specific attack techniques
-        attack_flows = {
-            'A': [
-                ('Initial Access', 'T1190', 'Exploit Public-Facing App'),
+        # Extract techniques from threat intelligence if available
+        if threats:
+            flow = self._extract_techniques_from_threats(threats)
+        else:
+            # Only use static flow as last resort
+            flow = [
+                ('Initial Access', 'T1190', 'Exploit Public-Facing Application'),
                 ('Execution', 'T1059.003', 'Windows Command Shell'),
                 ('Persistence', 'T1053.005', 'Scheduled Task'),
                 ('Impact', 'T1486', 'Data Encrypted for Impact')
-            ],
-            'B': [
-                ('Initial Access', 'T1566.001', 'Spearphishing Attachment'),
-                ('Execution', 'T1204.002', 'Malicious File'),
-                ('Privilege Escalation', 'T1068', 'Exploitation for Privilege Escalation'),
-                ('Impact', 'T1565.001', 'Stored Data Manipulation')
-            ],
-            'C': [
-                ('Initial Access', 'T1078.004', 'Cloud Accounts'),
-                ('Lateral Movement', 'T1021.001', 'Remote Desktop Protocol'),
-                ('Collection', 'T1005', 'Data from Local System'),
-                ('Exfiltration', 'T1041', 'Exfiltration Over C2 Channel')
             ]
-        }
         
-        # Get attack flow for scenario or use default
-        flow = attack_flows.get(str(scenario_id).upper(), attack_flows['A'])
-        
-        # Build mermaid diagram with specific techniques
+        # Build mermaid diagram
         mermaid = f"graph TD\n    Target[\"🎯 {safe_product_name}\"]\n"
         
         for i, (phase, technique, description) in enumerate(flow, 1):
             node_id = f"Phase{i}"
-            mermaid += f"    {node_id}[\"{phase}\\n{technique}\\n{description}\"]\n"
+            mermaid += f"    {node_id}[\"{phase}\\n{technique}\\n{description[:20]}...\"]\n"
             
             if i == 1:
                 mermaid += f"    Target --> {node_id}\n"

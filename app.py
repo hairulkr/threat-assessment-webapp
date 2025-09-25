@@ -704,7 +704,7 @@ class ThreatModelingWebApp:
             
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
-                with st.container(border=True):
+                with st.container():
                     with st.form("login_form"):
                         password = st.text_input(
                             "Enter password:", 
