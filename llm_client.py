@@ -87,11 +87,10 @@ class LLMClient:
         
         # Default to gpt-oss if no model specified
         if not self.selected_model:
-            self.selected_model = "gpt-oss:120b-cloud"
+            self.selected_model = "gpt-oss:120b"
         
         self.model = "ollama-client"
         self.model_name = self.selected_model
-        self.base_url = "https://api.ollama.com/v1/chat/completions"
     
     def is_available(self) -> bool:
         """Check if the LLM client is available"""
@@ -268,7 +267,7 @@ class LLMClient:
             return f"Execution error: {str(e)}"
     
     async def _call_ollama(self, prompt: str, max_tokens: int) -> str:
-        """Call Ollama API"""
+        """Call Ollama API using REST endpoint"""
         import requests
         import asyncio
         from datetime import datetime
@@ -276,31 +275,25 @@ class LLMClient:
         start_time = datetime.now()
         logging.info(f"Ollama API call started at {start_time}")
         
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "model": self.selected_model,
-            "messages": [
-                {
-                    "role": "user", 
-                    "content": prompt
-                }
-            ],
-            "max_tokens": max_tokens,
-            "temperature": 0.1,
-            "stream": False
-        }
-        
         def make_request():
             try:
+                headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                data = {
+                    "model": self.selected_model,
+                    "prompt": prompt,
+                    "stream": False
+                }
+                
                 logging.info(f"Making Ollama request with {len(prompt)} chars")
+                
                 response = requests.post(
-                    self.base_url, 
-                    json=data, 
-                    headers=headers, 
+                    "https://api.ollama.com/api/generate",
+                    json=data,
+                    headers=headers,
                     timeout=120
                 )
                 
@@ -309,7 +302,7 @@ class LLMClient:
                 
                 if response.status_code == 200:
                     result = response.json()
-                    content = result["choices"][0]["message"]["content"]
+                    content = result.get('response', '')
                     logging.info(f"Ollama success: {len(content)} chars returned")
                     return content
                 else:
@@ -370,8 +363,8 @@ def get_available_providers() -> Dict[str, Dict[str, str]]:
     
     # Check Ollama models
     ollama_models = {
-        "gpt-oss:120b-cloud": {"name": "GPT-OSS 120B", "desc": "Open source GPT model"},
-        "deepseek-v3.1:671b-cloud": {"name": "DeepSeek V3.1 671B", "desc": "Advanced reasoning model"}
+        "gpt-oss:120b": {"name": "GPT-OSS 120B", "desc": "Open source GPT model"},
+        "deepseek-v3.1:671b": {"name": "DeepSeek V3.1 671B", "desc": "Advanced reasoning model"}
     }
     
     for model_id, model_info in ollama_models.items():
