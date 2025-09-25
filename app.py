@@ -1025,6 +1025,9 @@ class ThreatModelingWebApp:
                                 help=help_text
                             ):
                                 st.session_state.selected_product = name
+                                # Clear the final_product_input to force update
+                                if 'final_product_input' in st.session_state:
+                                    del st.session_state.final_product_input
                                 st.rerun()
                 
                 elif len(product_input) > 2 and st.session_state.get('last_search') == product_input:
