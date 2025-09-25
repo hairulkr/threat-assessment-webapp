@@ -883,6 +883,12 @@ class ThreatModelingWebApp:
                 if st.button("❌ Close Methodology", use_container_width=True):
                     st.session_state.show_methodology = False
                     st.rerun()
+            
+            # Logout link at bottom of sidebar
+            st.markdown("---")
+            if st.button("🚪 Logout", use_container_width=True, type="secondary"):
+                self.logout()
+                st.rerun()
         
         # Check if methodology should be displayed
         if st.session_state.get('show_methodology', False):
