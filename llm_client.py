@@ -370,8 +370,8 @@ def get_available_providers() -> Dict[str, Dict[str, str]]:
     for model_id, model_info in ollama_models.items():
         ollama_client = LLMClient("ollama", model=model_id)
         status = ollama_client.get_status()
-        # Create clean key: gpt-oss:120b-cloud -> ollama-gpt-oss-120b
-        clean_key = f"ollama-{model_id.replace(':', '-').replace('.', '-')}"
+        # Create clean key: gpt-oss:120b -> ollama-gpt-oss-120b
+        clean_key = f"ollama-{model_id.replace(':', '-').replace('.', '-').replace('_', '-')}"
         providers[clean_key] = {
             "status": status["status"],
             "model": model_info["name"],

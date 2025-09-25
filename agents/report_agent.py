@@ -145,21 +145,21 @@ class ReportAgent:
         if not phases:
             return self.create_fallback_diagram(scenario_id, "Unknown", product_name, None)
         
-        # Build mermaid diagram
-        mermaid = f"graph TD\n    Target[\"🎯 {safe_product_name}\"]\n"
+        # Build simple mermaid diagram without emojis or newlines
+        mermaid = f"graph TD\n    A[{safe_product_name}]\n"
         
         for i, (phase_desc, mitre_id) in enumerate(phases, 1):
-            phase_name = f"Phase{i}"
-            clean_desc = html.escape(phase_desc[:30])
-            clean_mitre = html.escape(mitre_id)
+            node_id = chr(65 + i)  # B, C, D, E...
+            clean_desc = phase_desc[:20].replace('"', '')
+            clean_mitre = mitre_id.replace('"', '')
             
-            mermaid += f"    {phase_name}[\"{clean_desc}\\n{clean_mitre}\"]\n"
+            mermaid += f"    {node_id}[{clean_desc} - {clean_mitre}]\n"
             
             if i == 1:
-                mermaid += f"    Target --> {phase_name}\n"
+                mermaid += f"    A --> {node_id}\n"
             else:
-                prev_phase = f"Phase{i-1}"
-                mermaid += f"    {prev_phase} --> {phase_name}\n"
+                prev_node = chr(65 + i - 1)
+                mermaid += f"    {prev_node} --> {node_id}\n"
         
         # Add styling
         mermaid += """\n    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px
