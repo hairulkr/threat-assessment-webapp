@@ -813,18 +813,28 @@ class ThreatModelingWebApp:
                 st.session_state.selected_llm_provider = selected_provider
                 
                 # Show detailed status for selected provider
-                selected_info = providers[selected_provider]
-                if "Available" in selected_info["status"]:
+                if selected_provider in providers:
+                    selected_info = providers[selected_provider]
+                else:
+                    # Reset to default if key doesn't exist
+                    selected_provider = list(providers.keys())[0] if providers else 'gemini-2.0-flash'
+                    st.session_state.selected_llm_provider = selected_provider
+                    selected_info = providers.get(selected_provider, {})
+                
+                if selected_info and "Available" in selected_info.get("status", ""):
                     st.success(f"✅ {selected_info['model']} Ready")
                     st.info(f"**Provider:** {selected_info['provider']}")
-                else:
-                    st.error(f"❌ {selected_info['model']} - API Key Missing")
-                    if selected_info['provider'] == "Gemini":
+                elif selected_info:
+                    st.error(f"❌ {selected_info.get('model', 'Unknown')} - API Key Missing")
+                    provider = selected_info.get('provider', '')
+                    if provider == "Gemini":
                         st.info("Add GEMINI_API_KEY to Streamlit secrets or environment variables")
-                    elif selected_info['provider'] == "Perplexity":
+                    elif provider == "Perplexity":
                         st.info("Add PERPLEXITY_API_KEY to Streamlit secrets or environment variables")
-                    elif selected_info['provider'] == "Ollama":
+                    elif provider == "Ollama":
                         st.info("Add OLLAMA_API_KEY to Streamlit secrets or environment variables")
+                else:
+                    st.error("❌ No AI models available")
             else:
                 st.error("❌ No AI models available")
             

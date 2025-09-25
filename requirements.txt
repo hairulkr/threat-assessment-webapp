@@ -6,3 +6,4 @@ lxml
 aiohttp
 feedparser
 markdown
+ollama

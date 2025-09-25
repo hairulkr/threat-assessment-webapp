@@ -74,26 +74,24 @@ class LLMClient:
     
     def _init_ollama(self):
         """Initialize Ollama client"""
+        # Try to get API key for cloud usage (optional)
         if not self.api_key:
             try:
                 self.api_key = st.secrets["OLLAMA_API_KEY"]
             except (KeyError, AttributeError):
                 self.api_key = os.getenv('OLLAMA_API_KEY')
         
-        if not self.api_key:
-            self.model = None
-            self.model_name = "No API Key"
-            return
-        
-        # Default to gpt-oss if no model specified
+        # Default to cloud model if no model specified
         if not self.selected_model:
-            self.selected_model = "gpt-oss:120b"
+            self.selected_model = "gpt-oss:120b-cloud"  # Cloud available model
         
         self.model = "ollama-client"
         self.model_name = self.selected_model
     
     def is_available(self) -> bool:
         """Check if the LLM client is available"""
+        if self.provider == "ollama":
+            return self.model is not None  # Ollama can work locally without API key
         return self.model is not None and self.api_key is not None
     
     def get_status(self) -> Dict[str, str]:
@@ -267,8 +265,7 @@ class LLMClient:
             return f"Execution error: {str(e)}"
     
     async def _call_ollama(self, prompt: str, max_tokens: int) -> str:
-        """Call Ollama API using REST endpoint"""
-        import requests
+        """Call Ollama using official Python client"""
         import asyncio
         from datetime import datetime
         
@@ -277,43 +274,59 @@ class LLMClient:
         
         def make_request():
             try:
-                headers = {
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                }
+                import ollama
                 
-                data = {
-                    "model": self.selected_model,
-                    "prompt": prompt,
-                    "stream": False
-                }
+                # Try local first, then cloud if API key available
+                client = None
+                
+                # Try local Ollama first
+                try:
+                    client = ollama.Client()
+                    # Test connection
+                    client.list()
+                    logging.info("Using local Ollama")
+                except Exception:
+                    client = None
+                
+                # If local fails and we have API key, try cloud
+                if client is None and self.api_key:
+                    try:
+                        client = ollama.Client(
+                            host='https://ollama.com',
+                            headers={'Authorization': self.api_key}
+                        )
+                        logging.info("Using Ollama Cloud")
+                    except Exception:
+                        client = None
+                
+                if client is None:
+                    return "Ollama not available. Install locally or provide OLLAMA_API_KEY for cloud access."
                 
                 logging.info(f"Making Ollama request with {len(prompt)} chars")
                 
-                response = requests.post(
-                    "https://api.ollama.com/api/generate",
-                    json=data,
-                    headers=headers,
-                    timeout=120
+                response = client.chat(
+                    model=self.selected_model,
+                    messages=[
+                        {
+                            'role': 'user',
+                            'content': prompt,
+                        },
+                    ],
+                    options={
+                        'temperature': 0.1,
+                        'top_p': 0.9
+                    }
                 )
                 
                 elapsed = (datetime.now() - start_time).total_seconds()
-                logging.info(f"Ollama response received after {elapsed:.1f}s, status: {response.status_code}")
+                logging.info(f"Ollama response received after {elapsed:.1f}s")
                 
-                if response.status_code == 200:
-                    result = response.json()
-                    content = result.get('response', '')
-                    logging.info(f"Ollama success: {len(content)} chars returned")
-                    return content
-                else:
-                    error_text = response.text[:500]
-                    logging.error(f"Ollama API error {response.status_code}: {error_text}")
-                    return f"Ollama API error {response.status_code}: {error_text}"
+                content = response['message']['content']
+                logging.info(f"Ollama success: {len(content)} chars returned")
+                return content
                     
-            except requests.exceptions.Timeout:
-                elapsed = (datetime.now() - start_time).total_seconds()
-                logging.error(f"Ollama timeout after {elapsed:.1f}s")
-                return "Ollama API timeout"
+            except ImportError:
+                return "Ollama client not installed. Run: pip install ollama"
             except Exception as e:
                 elapsed = (datetime.now() - start_time).total_seconds()
                 logging.error(f"Ollama exception after {elapsed:.1f}s: {str(e)}")
@@ -361,10 +374,12 @@ def get_available_providers() -> Dict[str, Dict[str, str]]:
         "model_id": "sonar-pro"
     }
     
-    # Check Ollama models
+    # Check Ollama models (cloud available)
     ollama_models = {
-        "gpt-oss:120b": {"name": "GPT-OSS 120B", "desc": "Open source GPT model"},
-        "deepseek-v3.1:671b": {"name": "DeepSeek V3.1 671B", "desc": "Advanced reasoning model"}
+        "gpt-oss:20b-cloud": {"name": "GPT-OSS 20B", "desc": "Fast open source model"},
+        "gpt-oss:120b-cloud": {"name": "GPT-OSS 120B", "desc": "Large open source model"},
+        "deepseek-v3.1:671b-cloud": {"name": "DeepSeek V3.1 671B", "desc": "Advanced reasoning model"},
+        "qwen3-coder:480b-cloud": {"name": "Qwen3 Coder 480B", "desc": "Code-specialized model"}
     }
     
     for model_id, model_info in ollama_models.items():
