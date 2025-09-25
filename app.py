@@ -942,6 +942,9 @@ class ThreatModelingWebApp:
             # Handle product selection from recommendations
             if st.session_state.get('selected_product'):
                 st.session_state.product_search = st.session_state.selected_product
+                # Clear suggestions to prevent retrigger
+                st.session_state.suggestions = []
+                st.session_state.last_search = st.session_state.selected_product
                 st.session_state.selected_product = ''
             
             # Product input
