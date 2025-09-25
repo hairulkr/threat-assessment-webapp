@@ -937,19 +937,16 @@ class ThreatModelingWebApp:
             st.header("🎯 Product Assessment")
             
             # Product search and suggestion
-            # Use selected product if available, otherwise use current input
-            default_value = st.session_state.get('selected_product', '')
+            # Product input with persistent value
             product_input = st.text_input(
                 "Enter Product/System Name:",
-                value=default_value,
                 placeholder="e.g., Visual Studio Code, Apache Tomcat, WordPress",
                 help="Enter the name of the software product you want to assess",
                 key="product_search"
             )
             
-            # Clear selected_product after it's been used in the input
-            if st.session_state.get('selected_product') and product_input == st.session_state.get('selected_product'):
-                st.session_state.selected_product = ''
+            # Keep selected_product until form is shown
+            # Don't clear it immediately to ensure form appears
             
             # CPE-based product suggestions
             if product_input and len(product_input) > 2:
@@ -1013,7 +1010,8 @@ class ThreatModelingWebApp:
                                 use_container_width=True,
                                 help=help_text
                             ):
-                                st.session_state.selected_product = name
+                                # Update the product search input directly
+                                st.session_state.product_search = name
                                 st.rerun()
                 
                 elif len(product_input) > 2:
