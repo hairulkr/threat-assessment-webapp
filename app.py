@@ -888,26 +888,6 @@ class ThreatModelingWebApp:
 
             
             st.markdown("---")
-            st.markdown("### 🔐 Session")
-            
-            # Session status and logout
-            if st.session_state.get('authenticated', False):
-                remaining_time = self.get_session_time_remaining()
-                minutes = remaining_time // 60
-                seconds = remaining_time % 60
-                
-                if remaining_time > 300:  # > 5 minutes
-                    st.success(f"✅ Session: {minutes}m {seconds}s")
-                elif remaining_time > 60:  # 1-5 minutes
-                    st.warning(f"⚠️ Session: {minutes}m {seconds}s")
-                else:  # < 1 minute
-                    st.error(f"🔴 Session: {seconds}s")
-                
-                if st.button("🚪 Logout", use_container_width=True, type="secondary"):
-                    self.logout()
-                    st.rerun()
-            
-            st.markdown("---")
             st.markdown("### 📚 Documentation")
             
             # Methodology documentation
@@ -918,6 +898,12 @@ class ThreatModelingWebApp:
             if st.session_state.get('show_methodology', False):
                 if st.button("❌ Close Methodology", use_container_width=True):
                     st.session_state.show_methodology = False
+                    st.rerun()
+            
+            # Logout button
+            if st.session_state.get('authenticated', False):
+                if st.button("🚪 Logout", use_container_width=True, type="secondary"):
+                    self.logout()
                     st.rerun()
             
 
