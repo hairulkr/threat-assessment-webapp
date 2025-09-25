@@ -953,25 +953,34 @@ class ThreatModelingWebApp:
             st.header("🎯 Product Assessment")
             
             # Product search and suggestion
-            # Product input with selected product as default
-            default_value = st.session_state.get('selected_product', '')
+            # Handle product selection from recommendations
+            if st.session_state.get('selected_product'):
+                st.session_state.product_search = st.session_state.selected_product
+                st.session_state.selected_product = ''
+            
+            # Product input
             product_input = st.text_input(
                 "Enter Product/System Name:",
-                value=default_value,
                 placeholder="e.g., Visual Studio Code, Apache Tomcat, WordPress",
                 help="Enter the name of the software product you want to assess",
                 key="product_search"
             )
             
-            # Clear selected_product after it's been used in the input
-            if st.session_state.get('selected_product') and product_input == st.session_state.get('selected_product'):
-                st.session_state.selected_product = ''
-            
-            # CPE-based product suggestions
+            # CPE-based product suggestions with manual refresh
             if product_input and len(product_input) > 2:
-                if ('suggestions' not in st.session_state or 
-                    st.session_state.get('last_search') != product_input):
-                    
+                # Show search button for manual triggering
+                col_search, col_refresh = st.columns([4, 1])
+                with col_refresh:
+                    refresh_search = st.button("🔍 Search", help="Get AI product suggestions")
+                
+                # Trigger search on new input or manual refresh
+                should_search = (
+                    'suggestions' not in st.session_state or 
+                    st.session_state.get('last_search') != product_input or
+                    refresh_search
+                )
+                
+                if should_search:
                     try:
                         api_key = st.secrets["GEMINI_API_KEY"]
                     except:
@@ -1032,11 +1041,13 @@ class ThreatModelingWebApp:
                                 st.session_state.selected_product = name
                                 st.rerun()
                 
-                elif len(product_input) > 2:
+                elif len(product_input) > 2 and st.session_state.get('last_search') == product_input:
                     st.info("💡 **No CVE data found for this product name**")
                     st.markdown("""
                     **Tip**: Try searching at [NVD CPE Search](https://nvd.nist.gov/products/cpe/search) for exact product names.
                     """)
+                elif len(product_input) > 2:
+                    st.info("💡 **Click 🔍 Search to get AI product suggestions**")
             
             # Assessment form
             if product_input:
