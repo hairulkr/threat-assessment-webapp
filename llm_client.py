@@ -91,7 +91,7 @@ class LLMClient:
         
         self.model = "ollama-client"
         self.model_name = self.selected_model
-        self.base_url = "https://api.ollama.ai/v1/chat/completions"
+        self.base_url = "https://api.ollama.com/v1/chat/completions"
     
     def is_available(self) -> bool:
         """Check if the LLM client is available"""
