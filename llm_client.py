@@ -25,6 +25,8 @@ class LLMClient:
             self._init_gemini()
         elif self.provider == "perplexity":
             self._init_perplexity()
+        elif self.provider == "ollama":
+            self._init_ollama()
         else:
             raise ValueError(f"Unsupported provider: {provider}")
     
@@ -70,6 +72,27 @@ class LLMClient:
         self.model_name = "sonar-pro"
         self.base_url = "https://api.perplexity.ai/chat/completions"
     
+    def _init_ollama(self):
+        """Initialize Ollama client"""
+        if not self.api_key:
+            try:
+                self.api_key = st.secrets["OLLAMA_API_KEY"]
+            except (KeyError, AttributeError):
+                self.api_key = os.getenv('OLLAMA_API_KEY')
+        
+        if not self.api_key:
+            self.model = None
+            self.model_name = "No API Key"
+            return
+        
+        # Default to gpt-oss if no model specified
+        if not self.selected_model:
+            self.selected_model = "gpt-oss:120b-cloud"
+        
+        self.model = "ollama-client"
+        self.model_name = self.selected_model
+        self.base_url = "https://api.ollama.ai/v1/chat/completions"
+    
     def is_available(self) -> bool:
         """Check if the LLM client is available"""
         return self.model is not None and self.api_key is not None
@@ -102,6 +125,8 @@ class LLMClient:
                 result = response.text
             elif self.provider == "perplexity":
                 result = await self._call_perplexity(prompt, max_tokens)
+            elif self.provider == "ollama":
+                result = await self._call_ollama(prompt, max_tokens)
                 
                 # Check if Perplexity failed and fallback to Gemini if available
                 if ("error" in result.lower() or "timeout" in result.lower() or 
@@ -241,6 +266,73 @@ class LLMClient:
         except Exception as e:
             logging.error(f"Async execution error: {str(e)}")
             return f"Execution error: {str(e)}"
+    
+    async def _call_ollama(self, prompt: str, max_tokens: int) -> str:
+        """Call Ollama API"""
+        import requests
+        import asyncio
+        from datetime import datetime
+        
+        start_time = datetime.now()
+        logging.info(f"Ollama API call started at {start_time}")
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": self.selected_model,
+            "messages": [
+                {
+                    "role": "user", 
+                    "content": prompt
+                }
+            ],
+            "max_tokens": max_tokens,
+            "temperature": 0.1,
+            "stream": False
+        }
+        
+        def make_request():
+            try:
+                logging.info(f"Making Ollama request with {len(prompt)} chars")
+                response = requests.post(
+                    self.base_url, 
+                    json=data, 
+                    headers=headers, 
+                    timeout=120
+                )
+                
+                elapsed = (datetime.now() - start_time).total_seconds()
+                logging.info(f"Ollama response received after {elapsed:.1f}s, status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    content = result["choices"][0]["message"]["content"]
+                    logging.info(f"Ollama success: {len(content)} chars returned")
+                    return content
+                else:
+                    error_text = response.text[:500]
+                    logging.error(f"Ollama API error {response.status_code}: {error_text}")
+                    return f"Ollama API error {response.status_code}: {error_text}"
+                    
+            except requests.exceptions.Timeout:
+                elapsed = (datetime.now() - start_time).total_seconds()
+                logging.error(f"Ollama timeout after {elapsed:.1f}s")
+                return "Ollama API timeout"
+            except Exception as e:
+                elapsed = (datetime.now() - start_time).total_seconds()
+                logging.error(f"Ollama exception after {elapsed:.1f}s: {str(e)}")
+                return f"Ollama error: {str(e)}"
+        
+        try:
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, make_request)
+            return result
+        except Exception as e:
+            logging.error(f"Async execution error: {str(e)}")
+            return f"Execution error: {str(e)}"
 
 def get_available_providers() -> Dict[str, Dict[str, str]]:
     """Get status of all available LLM providers"""
@@ -275,6 +367,25 @@ def get_available_providers() -> Dict[str, Dict[str, str]]:
         "provider": "Perplexity",
         "model_id": "sonar-pro"
     }
+    
+    # Check Ollama models
+    ollama_models = {
+        "gpt-oss:120b-cloud": {"name": "GPT-OSS 120B", "desc": "Open source GPT model"},
+        "deepseek-v3.1:671b-cloud": {"name": "DeepSeek V3.1 671B", "desc": "Advanced reasoning model"}
+    }
+    
+    for model_id, model_info in ollama_models.items():
+        ollama_client = LLMClient("ollama", model=model_id)
+        status = ollama_client.get_status()
+        # Create clean key: gpt-oss:120b-cloud -> ollama-gpt-oss-120b
+        clean_key = f"ollama-{model_id.replace(':', '-').replace('.', '-')}"
+        providers[clean_key] = {
+            "status": status["status"],
+            "model": model_info["name"],
+            "description": model_info["desc"],
+            "provider": "Ollama",
+            "model_id": model_id
+        }
     
     return providers
 

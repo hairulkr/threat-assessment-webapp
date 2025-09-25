@@ -207,8 +207,12 @@ class ThreatModelingWebApp:
             provider_info = providers[provider_key]
             if provider_info['provider'] == 'Gemini':
                 llm = LLMClient('gemini', model=provider_info['model_id'])
-            else:
+            elif provider_info['provider'] == 'Perplexity':
                 llm = LLMClient('perplexity')
+            elif provider_info['provider'] == 'Ollama':
+                llm = LLMClient('ollama', model=provider_info['model_id'])
+            else:
+                llm = LLMClient('gemini')
         else:
             llm = LLMClient('gemini')
         
@@ -819,6 +823,8 @@ class ThreatModelingWebApp:
                         st.info("Add GEMINI_API_KEY to Streamlit secrets or environment variables")
                     elif selected_info['provider'] == "Perplexity":
                         st.info("Add PERPLEXITY_API_KEY to Streamlit secrets or environment variables")
+                    elif selected_info['provider'] == "Ollama":
+                        st.info("Add OLLAMA_API_KEY to Streamlit secrets or environment variables")
             else:
                 st.error("❌ No AI models available")
             
