@@ -150,7 +150,7 @@ class LLMClient:
                             result = f"Perplexity failed and no Gemini key available: {result}"
                     except Exception as fallback_error:
                         logging.error(f"Gemini fallback also failed: {str(fallback_error)}")
-                        result = f"Both Perplexity and Gemini failed: {result}"
+                        result = f"Both {self.provider.title()} and Gemini failed: {result}"
             else:
                 result = "Error: Unsupported provider"
             
