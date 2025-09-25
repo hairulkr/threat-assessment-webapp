@@ -74,10 +74,17 @@ class ReportAgent:
             diagrams = {}
             for scenario_id, scenario_title in scenarios_found:
                 phases = self._extract_phases_from_batch_response(response, scenario_id)
+                if not phases:
+                    # Try extracting phases directly from scenario content
+                    scenario_content = self.scenario_parser.extract_scenario_content(
+                        "", scenario_id, scenario_title
+                    )
+                    phases = self._extract_phases_from_content(scenario_content)
+                
                 if phases:
                     diagram_html = self._generate_diagram_from_phases(phases, scenario_id, product_name)
                     diagrams[scenario_id] = diagram_html
-                    print(f"✅ Batch diagram generated for Scenario {scenario_id}")
+                    print(f"✅ Batch diagram generated for Scenario {scenario_id} with {len(phases)} phases")
                 else:
                     diagrams[scenario_id] = self.create_fallback_diagram(scenario_id, scenario_title, product_name, threats)
                     print(f"🔄 Using intel-based fallback diagram for Scenario {scenario_id}")
@@ -106,13 +113,26 @@ class ReportAgent:
         scenario_text = match.group(1)
         phases = []
         
-        # Extract numbered phases
-        phase_pattern = r'\d+\.\s*([^-\n]+)\s*-\s*(T\d{4}(?:\.\d{3})?)?'
-        for match in re.finditer(phase_pattern, scenario_text):
-            phase_name = match.group(1).strip()[:40]
-            mitre_id = match.group(2) if match.group(2) else 'T1059'
-            if phase_name:
-                phases.append((phase_name, mitre_id))
+        # Extract numbered phases - improved pattern to handle various formats
+        phase_patterns = [
+            r'\d+\.\s*([^-\n]+)\s*-\s*(T\d{4}(?:\.\d{3})?)',  # "1. Phase Name - T1234"
+            r'Phase\s+(\d+):\s*([^\n]+)',  # "Phase 1: Phase Name"
+            r'(\d+)\s*[.:]\s*([^\n-]+?)(?:\s*-\s*(T\d{4}(?:\.\d{3})?))?',  # "1. Phase Name" or "1: Phase Name - T1234"
+        ]
+        
+        for pattern in phase_patterns:
+            for match in re.finditer(pattern, scenario_text):
+                if len(match.groups()) == 2:  # Phase X: Name format
+                    phase_name = match.group(2).strip()[:40]
+                    mitre_id = 'T1059'  # Default MITRE technique
+                elif len(match.groups()) >= 3:  # Other formats
+                    phase_name = match.group(2).strip()[:40] if match.group(2) else match.group(1).strip()[:40]
+                    mitre_id = match.group(3) if len(match.groups()) >= 3 and match.group(3) else 'T1059'
+                else:
+                    continue
+                
+                if phase_name and phase_name not in [p[0] for p in phases]:
+                    phases.append((phase_name, mitre_id))
         
         return phases[:6]  # Limit to 6 phases
     
@@ -155,6 +175,36 @@ class ReportAgent:
         {mermaid}
     </div>
 </div>"""
+    
+    def _extract_phases_from_content(self, content: str) -> list:
+        """Extract phases directly from scenario content for diagram generation"""
+        phases = []
+        
+        # Look for "Phase X:" patterns with improved regex
+        phase_patterns = [
+            r'Phase\s+(\d+):\s*([^\n]+)',  # "Phase 1: Description"
+            r'(\d+)\s*[.:]\s*([^\n]+?)(?:\s*-\s*(T\d{4}(?:\.\d{3})?))?',  # "1. Description" or "1: Description - T1234"
+        ]
+        
+        for pattern in phase_patterns:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                if len(match.groups()) >= 2:
+                    phase_num = match.group(1)
+                    phase_desc = match.group(2).strip()[:50]
+                    
+                    # Extract MITRE technique if present
+                    if len(match.groups()) >= 3 and match.group(3):
+                        mitre_id = match.group(3)
+                    else:
+                        mitre_match = re.search(r'(T\d{4}(?:\.\d{3})?)', phase_desc)
+                        mitre_id = mitre_match.group(1) if mitre_match else f'T{1000 + int(phase_num) * 100}'
+                    
+                    # Avoid duplicates
+                    if phase_desc not in [p[0] for p in phases]:
+                        phases.append((phase_desc, mitre_id))
+        
+        return phases[:6]  # Limit to 6 phases
     
     async def parse_and_generate_diagrams(self, report_content: str, threats, product_name: str) -> str:
         """Parse scenarios and generate diagrams using batch processing"""
