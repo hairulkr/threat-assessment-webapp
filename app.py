@@ -952,18 +952,27 @@ class ThreatModelingWebApp:
                 key="product_search"
             )
             
-            # CPE-based product suggestions with manual refresh
+            # CPE-based product suggestions with enter key retrigger
             if product_input and len(product_input) > 2:
-                # Show search button for manual triggering
-                col_search, col_refresh = st.columns([4, 1])
-                with col_refresh:
-                    refresh_search = st.button("🔍 Search", help="Get AI product suggestions")
+                # Create a form to capture enter key presses
+                with st.form(key="search_form", clear_on_submit=False):
+                    # Hidden submit button that triggers on enter
+                    search_trigger = st.form_submit_button("Search", type="primary", use_container_width=False)
+                    
+                    # Make the button invisible with CSS
+                    st.markdown("""
+                    <style>
+                    div[data-testid="stForm"] button {
+                        display: none;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
                 
-                # Trigger search on new input or manual refresh
+                # Trigger search on new input or enter key press
                 should_search = (
                     'suggestions' not in st.session_state or 
                     st.session_state.get('last_search') != product_input or
-                    refresh_search
+                    search_trigger
                 )
                 
                 if should_search:
@@ -1033,7 +1042,7 @@ class ThreatModelingWebApp:
                     **Tip**: Try searching at [NVD CPE Search](https://nvd.nist.gov/products/cpe/search) for exact product names.
                     """)
                 elif len(product_input) > 2:
-                    st.info("💡 **Click 🔍 Search to get AI product suggestions**")
+                    st.info("💡 **Press Enter to get AI product suggestions**")
             
             # Assessment form
             if product_input:
