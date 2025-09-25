@@ -138,41 +138,33 @@ class ReportAgent:
     
     def _generate_diagram_from_phases(self, phases: list, scenario_id: str, product_name: str) -> str:
         """Generate mermaid diagram from extracted phases"""
-        import html
-        safe_product_name = html.escape(product_name[:25])
-        safe_scenario_id = html.escape(str(scenario_id))
-        
         if not phases:
             return self.create_fallback_diagram(scenario_id, "Unknown", product_name, None)
         
-        # Build simple mermaid diagram without emojis or newlines
-        mermaid = f"graph TD\n    A[{safe_product_name}]\n"
+        # Build clean mermaid diagram
+        mermaid_lines = ["graph TD"]
+        mermaid_lines.append(f"    A[{product_name[:20]}]")
         
         for i, (phase_desc, mitre_id) in enumerate(phases, 1):
             node_id = chr(65 + i)  # B, C, D, E...
-            clean_desc = phase_desc[:20].replace('"', '')
-            clean_mitre = mitre_id.replace('"', '')
+            clean_desc = phase_desc[:25].replace('"', '').replace('[', '').replace(']', '')
+            clean_mitre = mitre_id[:10]
             
-            mermaid += f"    {node_id}[{clean_desc} - {clean_mitre}]\n"
+            mermaid_lines.append(f"    {node_id}[{clean_desc} {clean_mitre}]")
             
             if i == 1:
-                mermaid += f"    A --> {node_id}\n"
+                mermaid_lines.append(f"    A --> {node_id}")
             else:
                 prev_node = chr(65 + i - 1)
-                mermaid += f"    {prev_node} --> {node_id}\n"
+                mermaid_lines.append(f"    {prev_node} --> {node_id}")
         
-        # Add styling
-        mermaid += """\n    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px
-    classDef critical fill:#ffebee,stroke:#d32f2f,stroke-width:2px
-    classDef target fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    
-    class Target target"""
+        mermaid = "\n".join(mermaid_lines)
         
         return f"""
 <div class="diagram-container">
-    <h3>🎯 Attack Flow - Scenario {safe_scenario_id}</h3>
-    <div class="mermaid" id="diagram-{safe_scenario_id}">
-        {mermaid}
+    <h3>Attack Flow - Scenario {scenario_id}</h3>
+    <div class="mermaid">
+{mermaid}
     </div>
 </div>"""
     
@@ -180,29 +172,18 @@ class ReportAgent:
         """Extract phases directly from scenario content for diagram generation"""
         phases = []
         
-        # Look for "Phase X:" patterns with improved regex
-        phase_patterns = [
-            r'Phase\s+(\d+):\s*([^\n]+)',  # "Phase 1: Description"
-            r'(\d+)\s*[.:]\s*([^\n]+?)(?:\s*-\s*(T\d{4}(?:\.\d{3})?))?',  # "1. Description" or "1: Description - T1234"
-        ]
+        # Simple phase extraction - look for "Phase X:" patterns
+        phase_matches = re.finditer(r'Phase\s+(\d+):\s*([^\n]+)', content, re.IGNORECASE)
         
-        for pattern in phase_patterns:
-            matches = re.finditer(pattern, content, re.IGNORECASE)
-            for match in matches:
-                if len(match.groups()) >= 2:
-                    phase_num = match.group(1)
-                    phase_desc = match.group(2).strip()[:50]
-                    
-                    # Extract MITRE technique if present
-                    if len(match.groups()) >= 3 and match.group(3):
-                        mitre_id = match.group(3)
-                    else:
-                        mitre_match = re.search(r'(T\d{4}(?:\.\d{3})?)', phase_desc)
-                        mitre_id = mitre_match.group(1) if mitre_match else f'T{1000 + int(phase_num) * 100}'
-                    
-                    # Avoid duplicates
-                    if phase_desc not in [p[0] for p in phases]:
-                        phases.append((phase_desc, mitre_id))
+        for match in phase_matches:
+            phase_num = int(match.group(1))
+            phase_desc = match.group(2).strip()[:40]
+            
+            # Extract MITRE technique if present in description
+            mitre_match = re.search(r'(T\d{4}(?:\.\d{3})?)', phase_desc)
+            mitre_id = mitre_match.group(1) if mitre_match else f'T{1190 + phase_num}'
+            
+            phases.append((phase_desc, mitre_id))
         
         return phases[:6]  # Limit to 6 phases
     
