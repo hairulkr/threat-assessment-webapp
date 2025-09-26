@@ -83,7 +83,7 @@ class LLMClient:
         
         # Default to cloud model if no model specified
         if not self.selected_model:
-            self.selected_model = "gpt-oss:120b-cloud"  # Cloud available model
+            self.selected_model = "deepseek-v3.1:671b-cloud"  # Cloud available model
         
         self.model = "ollama-client"
         self.model_name = self.selected_model
