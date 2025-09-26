@@ -1222,14 +1222,14 @@ class ThreatModelingWebApp:
                             background-color: #ffffff;
                             color: #262730;
                             margin: 0;
-                            padding: 20px;
+                            padding: 0;
                             line-height: 1.6;
                         }}
                         .report-container {{
-                            width: calc(100vw - 40px);
+                            width: 100%;
                             margin: 0;
                             background: #ffffff;
-                            padding: 15px;
+                            padding: 10px;
                             box-sizing: border-box;
                         }}
                         h1 {{
