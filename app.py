@@ -30,7 +30,7 @@ try:
     from agents.product_info_agent import ProductInfoAgent
     from agents.intelligence_agent import IntelligenceAgent
     from agents.controls_agent import ControlsAgent
-    from agents.report_agent import ReportAgent
+    from agents.simple_report_agent import SimpleReportAgent as ReportAgent
 except Exception as e:
     import streamlit as st
     st.error(f"Error importing modules: {e}")
