@@ -500,10 +500,10 @@ class ProfessionalHTMLFormatter:
             mermaid.initialize({{ 
                 startOnLoad: true,
                 theme: 'default',
-                securityLevel: 'strict',
+                securityLevel: 'loose',
                 flowchart: {{
                     useMaxWidth: true,
-                    htmlLabels: false
+                    htmlLabels: true
                 }}
             }});
         }});
