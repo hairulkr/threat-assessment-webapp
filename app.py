@@ -27,7 +27,6 @@ except ImportError:
 # Import required modules with error handling
 try:
     from llm_client import LLMClient, get_available_providers
-    from gemini_client import GeminiClient  # Keep for backward compatibility
     from agents.product_info_agent import ProductInfoAgent
     from agents.intelligence_agent import IntelligenceAgent
     from agents.controls_agent import ControlsAgent
