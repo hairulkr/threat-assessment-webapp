@@ -146,8 +146,7 @@ class LLMClient:
                             fallback_response = gemini_model.generate_content(prompt)
                             result = f"[Fallback to Gemini] {fallback_response.text}"
                             logging.info("Successfully used Gemini fallback")
-                        else:
-                            result = f"Perplexity failed and no Gemini key available: {result}"
+
                     except Exception as fallback_error:
                         logging.error(f"Gemini fallback also failed: {str(fallback_error)}")
                         result = f"Both {self.provider.title()} and Gemini failed: {result}"
