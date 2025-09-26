@@ -386,30 +386,15 @@ class ReportAgent:
         threats = all_data.get('threats', [])
         product_name = all_data.get('product_name', 'Unknown')
         
-        # Never terminate - always proceed with available data
-        # Intelligence agent should provide fallback threats if needed
-        
-        # Calculate confidence based on threat count and sources
-        threat_sources = set(t.get('source', 'Unknown') for t in threats)
-        nvd_threats = len([t for t in threats if t.get('source') == 'NVD'])
-        
-        if len(threats) >= 5 and len(threat_sources) >= 3:
-            confidence = 9.0
-        elif len(threats) >= 3 and nvd_threats > 0:
-            confidence = 8.0
-        elif len(threats) >= 1:
-            confidence = 7.0
-        else:
-            confidence = 3.0
-        
-        print(f"   📊 DATA QUALITY: {len(threats)} threats, {len(threat_sources)} sources, confidence {confidence}/10")
+        # Always proceed - never terminate
+        threat_count = len(threats)
+        confidence = 7.0 if threat_count > 0 else 5.0
         
         return {
             'terminate_recommended': False,
             'confidence_score': confidence,
-            'threat_count': len(threats),
-            'source_diversity': len(threat_sources),
-            'validation_summary': f'Found {len(threats)} threats from {len(threat_sources)} sources'
+            'threat_count': threat_count,
+            'validation_summary': f'Proceeding with {threat_count} threats'
         }
     
     async def generate_comprehensive_report(self, all_data: Dict[str, Any]) -> str:
@@ -418,9 +403,8 @@ class ReportAgent:
         # Integrated data quality validation
         validation_result = self.validate_data_quality(all_data)
         
-        if validation_result.get('terminate_recommended', False):
-            print(f"   ⚠️ ANALYSIS TERMINATED: {validation_result.get('reason')}")
-            return None
+        # Never terminate - always generate a report
+        print(f"   📊 DATA QUALITY: {len(all_data.get('threats', []))} threats found, proceeding with report generation")
         
         # Generate report using standardized prompt
         report_prompt = PromptTemplates.get_comprehensive_report_prompt(all_data)
