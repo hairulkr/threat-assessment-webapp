@@ -1024,8 +1024,7 @@ class ThreatModelingWebApp:
                                 use_container_width=True,
                                 help=help_text
                             ):
-                                # Update the main product search input
-                                st.session_state.product_search = name
+                                st.session_state.selected_product = name
                                 st.rerun()
                 
                 elif len(product_input) > 2 and st.session_state.get('last_search') == product_input:
@@ -1039,9 +1038,14 @@ class ThreatModelingWebApp:
             # Assessment form
             if product_input:
                 with st.form("assessment_form"):
+                    # Use selected product if available, otherwise use current input
+                    form_value = st.session_state.get('selected_product', product_input)
+                    if st.session_state.get('selected_product'):
+                        st.session_state.selected_product = ''  # Clear after using
+                    
                     final_product = st.text_input(
                         "Product to assess:",
-                        value=product_input,
+                        value=form_value,
                         disabled=False,
                         help="You can edit this product name before starting the assessment",
                         key="final_product_input"
