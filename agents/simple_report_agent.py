@@ -29,10 +29,17 @@ No specific CVE threats were found in databases, but analyze common security ris
 Generate a professional HTML report with:
 1. Executive Summary - explain why no specific CVEs were found
 2. General Security Analysis - common risks for this type of product
-3. Attack Scenarios (2-3 realistic scenarios based on product type)
+3. Attack Flow Analysis (2-3 realistic attack flows mapped to MITRE ATT&CK techniques)
 4. Security Recommendations
 
-Use proper HTML tags. Return ONLY the HTML content (no markdown, no code blocks)."""
+For attack flows, use this format with proper MITRE ATT&CK mapping:
+<h3>Attack Flow A: [Attack Name]</h3>
+<p><strong>Initial Access:</strong> <span class="mitre-badge">T1190</span> [Technique Name] - [Description]</p>
+<p><strong>Execution:</strong> <span class="mitre-badge">T1059</span> [Technique Name] - [Description]</p>
+<p><strong>Persistence:</strong> <span class="mitre-badge">T1053</span> [Technique Name] - [Description]</p>
+<p><strong>Impact:</strong> <span class="mitre-badge">T1486</span> [Technique Name] - [Description]</p>
+
+Return ONLY the HTML content (no markdown, no code blocks)."""
         else:
             # Create threat summary
             threat_list = []
@@ -50,7 +57,7 @@ THREATS FOUND:
 Generate a professional HTML report with:
 1. Executive Summary
 2. Threat Analysis with CVE details
-3. Attack Scenarios (2-3 scenarios)
+3. Attack Flow Analysis (2-3 attack flows mapped to MITRE ATT&CK)
 4. Recommendations
 
 Use proper HTML tags and include:
@@ -102,12 +109,18 @@ Return ONLY the HTML content (no markdown, no code blocks)."""
             <li><strong>Data Exposure</strong> - Sensitive information disclosure</li>
             </ul>
             
-            <h2>Attack Scenarios</h2>
-            <h3>Scenario A: Code Injection Attack</h3>
-            <p>Attacker exploits input validation weaknesses to execute malicious code.</p>
+            <h2>Attack Flow Analysis</h2>
+            <h3>Attack Flow A: Code Injection Chain</h3>
+            <p><strong>Initial Access:</strong> <span class="mitre-badge">T1190</span> Exploit Public-Facing Application - Attacker identifies input validation weakness</p>
+            <p><strong>Execution:</strong> <span class="mitre-badge">T1059</span> Command and Scripting Interpreter - Malicious code executed through injection</p>
+            <p><strong>Persistence:</strong> <span class="mitre-badge">T1053</span> Scheduled Task/Job - Establish foothold on system</p>
+            <p><strong>Impact:</strong> <span class="mitre-badge">T1486</span> Data Encrypted for Impact - Potential ransomware deployment</p>
             
-            <h3>Scenario B: Privilege Escalation</h3>
-            <p>Local user gains elevated privileges through application vulnerabilities.</p>
+            <h3>Attack Flow B: Privilege Escalation Chain</h3>
+            <p><strong>Initial Access:</strong> <span class="mitre-badge">T1078</span> Valid Accounts - Local user account compromise</p>
+            <p><strong>Privilege Escalation:</strong> <span class="mitre-badge">T1068</span> Exploitation for Privilege Escalation - Exploit application vulnerabilities</p>
+            <p><strong>Defense Evasion:</strong> <span class="mitre-badge">T1055</span> Process Injection - Hide malicious activities</p>
+            <p><strong>Collection:</strong> <span class="mitre-badge">T1005</span> Data from Local System - Harvest sensitive information</p>
             
             <h2>Security Recommendations</h2>
             <ul>
@@ -156,7 +169,7 @@ Return ONLY the HTML content (no markdown, no code blocks)."""
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Threat Report - {product_name}</title>
     <style>
-        body {{ font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 0; }}
+        body {{ font-family: Arial, sans-serif; max-width: 1000px; margin: 0; padding: 0; }}
         h1 {{ color: #2563eb; border-bottom: 2px solid #2563eb; }}
         h2 {{ color: #374151; margin-top: 30px; }}
         .cve-badge {{ background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; }}
