@@ -1043,11 +1043,10 @@ class ThreatModelingWebApp:
                 with st.form("assessment_form"):
                     # Show the product name that will be assessed (editable)
                     # Use selected product if available, otherwise use input
+                    default_value = st.session_state.get('selected_product', product_input)
+                    # Clear selected_product after using it to avoid persistence
                     if st.session_state.get('selected_product'):
-                        default_value = st.session_state.selected_product
-                        st.session_state.selected_product = ''  # Clear after using
-                    else:
-                        default_value = product_input
+                        st.session_state.selected_product = ''
                     
                     final_product = st.text_input(
                         "Product to assess:",
