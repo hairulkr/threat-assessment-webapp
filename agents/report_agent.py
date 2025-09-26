@@ -308,6 +308,10 @@ The following threats were identified:
     def _clean_llm_response(self, response: str) -> str:
         """Clean LLM response text"""
         import re
+        # Remove diagram placeholders that might still appear
+        response = re.sub(r'\[DIAGRAM_PLACEHOLDER_SCENARIO_[A-Z]\]', '', response)
+        response = re.sub(r'\[DIAGRAM_[A-Z]\]', '', response)
+        
         # Remove extra whitespace and normalize line breaks
         response = re.sub(r'\n\s*\n\s*\n', '\n\n', response)
         response = re.sub(r'^\s+|\s+$', '', response, flags=re.MULTILINE)

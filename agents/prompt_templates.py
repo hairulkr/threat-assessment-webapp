@@ -44,7 +44,7 @@ Create a threat modeling report with these sections:
    - Map to appropriate MITRE ATT&CK techniques
    - Include technical details from the threat intelligence
    
-   End each scenario with: [DIAGRAM_PLACEHOLDER_SCENARIO_[A/B/C]]
+   Do NOT include any diagram placeholders - diagrams will be added automatically
    
    **For each phase include:**
    - Specific technical implementation details and commands
