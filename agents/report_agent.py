@@ -386,13 +386,8 @@ class ReportAgent:
         threats = all_data.get('threats', [])
         product_name = all_data.get('product_name', 'Unknown')
         
-        # Simple, reliable validation criteria
-        if len(threats) == 0:
-            return {
-                'terminate_recommended': True,
-                'reason': 'No threat intelligence found',
-                'confidence_score': 0.0
-            }
+        # Never terminate - always proceed with available data
+        # Intelligence agent should provide fallback threats if needed
         
         # Calculate confidence based on threat count and sources
         threat_sources = set(t.get('source', 'Unknown') for t in threats)
