@@ -5,9 +5,7 @@ import re
 from typing import Dict, Any
 from datetime import datetime
 # from mcp_diagram_generator import MCPDiagramGenerator  # No longer needed for batch processing
-from .report_formatter import ReportFormatter
 from .professional_html_formatter import ProfessionalHTMLFormatter
-from .scenario_parser import ScenarioParser
 from .prompt_templates import PromptTemplates
 
 class ReportAgent:
@@ -17,9 +15,7 @@ class ReportAgent:
         self.llm = llm_client
         self.reports_dir = "reports"
         # self.diagram_generator = MCPDiagramGenerator(self.llm)  # No longer needed
-        self.formatter = ReportFormatter()
         self.professional_formatter = ProfessionalHTMLFormatter()
-        self.scenario_parser = ScenarioParser()
         os.makedirs(self.reports_dir, exist_ok=True)
     
     def determine_scenario_types(self, threats):
@@ -37,9 +33,7 @@ class ReportAgent:
         # Prepare batch prompt for all scenarios
         scenario_texts = []
         for scenario_id, scenario_title in scenarios_found:
-            scenario_content = self.scenario_parser.extract_scenario_content(
-                "", scenario_id, scenario_title  # Will use fallback content
-            )
+            scenario_content = f"Scenario {scenario_id}: {scenario_title}"
             scenario_texts.append(f"SCENARIO {scenario_id}: {scenario_title}\n{scenario_content[:500]}")
         
         batch_prompt = f"""
@@ -76,9 +70,7 @@ class ReportAgent:
                 phases = self._extract_phases_from_batch_response(response, scenario_id)
                 if not phases:
                     # Try extracting phases directly from scenario content
-                    scenario_content = self.scenario_parser.extract_scenario_content(
-                        "", scenario_id, scenario_title
-                    )
+                    scenario_content = f"Scenario {scenario_id}: {scenario_title}"
                     phases = self._extract_phases_from_content(scenario_content)
                 
                 if phases:
@@ -189,8 +181,8 @@ class ReportAgent:
     
     async def parse_and_generate_diagrams(self, report_content: str, threats, product_name: str) -> str:
         """Parse scenarios and generate diagrams using batch processing"""
-        # Find unique scenarios using the dedicated parser
-        scenarios_found = self.scenario_parser.find_scenarios(report_content)
+        # Find unique scenarios using simple regex
+        scenarios_found = self._find_scenarios_simple(report_content)
         
         # If no scenarios found, try to extract attack flow from content
         if not scenarios_found:
@@ -208,7 +200,7 @@ class ReportAgent:
         
         # Replace placeholders with generated diagrams
         for scenario_id, diagram_html in diagrams.items():
-            report_content = self.scenario_parser.replace_placeholders(report_content, scenario_id, diagram_html)
+            report_content = self._replace_placeholders_simple(report_content, scenario_id, diagram_html)
         
         return report_content
     
@@ -445,7 +437,7 @@ class ReportAgent:
             )
             
             # Clean and normalize LLM response
-            report_content = self.formatter.clean_llm_response(report_content)
+            report_content = self._clean_llm_response(report_content)
             
             # Ensure consistent CVE and MITRE formatting before HTML conversion
             report_content = self._normalize_threat_references(report_content)
@@ -555,3 +547,28 @@ The following threats were identified:
         except Exception as e:
             print(f"Error creating HTML report: {e}")
             return f"HTML report creation failed: {e}"
+    
+    def _find_scenarios_simple(self, content: str) -> list:
+        """Simple scenario finder using regex"""
+        import re
+        scenarios = []
+        # Look for scenario patterns
+        scenario_matches = re.finditer(r'scenario\s+([a-z])\s*[:.]?\s*([^\n]+)', content, re.IGNORECASE)
+        for match in scenario_matches:
+            scenario_id = match.group(1).upper()
+            scenario_title = match.group(2).strip()
+            scenarios.append((scenario_id, scenario_title))
+        return scenarios[:3]  # Limit to 3 scenarios
+    
+    def _replace_placeholders_simple(self, content: str, scenario_id: str, diagram_html: str) -> str:
+        """Simple placeholder replacement"""
+        placeholder = f"[DIAGRAM_{scenario_id}]"
+        return content.replace(placeholder, diagram_html)
+    
+    def _clean_llm_response(self, response: str) -> str:
+        """Clean LLM response text"""
+        import re
+        # Remove extra whitespace and normalize line breaks
+        response = re.sub(r'\n\s*\n\s*\n', '\n\n', response)
+        response = re.sub(r'^\s+|\s+$', '', response, flags=re.MULTILINE)
+        return response.strip()
