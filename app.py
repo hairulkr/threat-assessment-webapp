@@ -1038,17 +1038,20 @@ class ThreatModelingWebApp:
             # Assessment form
             if product_input:
                 with st.form("assessment_form"):
-                    # Use selected product if available, otherwise use current input
-                    form_value = st.session_state.get('selected_product', product_input)
+                    # Initialize form input with current product_input if not set
+                    if 'form_product_name' not in st.session_state:
+                        st.session_state.form_product_name = product_input
+                    
+                    # Update form input if a product was selected
                     if st.session_state.get('selected_product'):
+                        st.session_state.form_product_name = st.session_state.selected_product
                         st.session_state.selected_product = ''  # Clear after using
                     
                     final_product = st.text_input(
                         "Product to assess:",
-                        value=form_value,
                         disabled=False,
                         help="You can edit this product name before starting the assessment",
-                        key="final_product_input"
+                        key="form_product_name"
                     )
                     
                     col_a, col_b = st.columns([4, 1])
@@ -1375,7 +1378,7 @@ class ThreatModelingWebApp:
                 keys_to_reset = [
                     'assessment_complete', 'assessment_running', 'report_content', 
                     'all_data', 'product_name', 'suggestions', 'selected_product', 
-                    'last_search', 'product_search', 'last_request'
+                    'last_search', 'product_search', 'last_request', 'form_product_name'
                 ]
                 
                 for key in keys_to_reset:
