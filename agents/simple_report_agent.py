@@ -169,7 +169,7 @@ Return ONLY the HTML content (no markdown, no code blocks)."""
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Threat Report - {product_name}</title>
     <style>
-        body {{ font-family: Arial, sans-serif; max-width: 1000px; margin: 0; padding: 0; }}
+        body {{ font-family: Arial, sans-serif; width: 100%; margin: 0; padding: 0; }}
         h1 {{ color: #2563eb; border-bottom: 2px solid #2563eb; }}
         h2 {{ color: #374151; margin-top: 30px; }}
         .cve-badge {{ background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; }}
