@@ -1,8 +1,6 @@
 import json
 import asyncio
 from typing import List, Dict, Any
-from optimized_threat_intel import OptimizedThreatIntel
-from agents.specialized_ranking_agents import MultiAgentRankingOrchestrator
 from agents.accuracy_enhancer import ThreatAccuracyEnhancer
 
 class IntelligenceAgent:
@@ -10,8 +8,6 @@ class IntelligenceAgent:
     
     def __init__(self, llm_client):
         self.llm = llm_client
-        self.intel_sources = OptimizedThreatIntel()
-        self.ranking_orchestrator = MultiAgentRankingOrchestrator()
         self.accuracy_enhancer = ThreatAccuracyEnhancer()
     
     async def comprehensive_analysis(self, product_info: Dict[str, Any]) -> Dict[str, Any]:
@@ -21,12 +17,30 @@ class IntelligenceAgent:
             # Extract keywords from product info
             keywords = self._extract_keywords(product_info)
             
-            # Gather threat intelligence from 17 sources
-            all_threats = []
-            async with self.intel_sources as intel_client:
-                primary_keyword = keywords[0] if keywords else product_info.get('name', '')
-                print(f"   Gathering comprehensive intelligence for: {primary_keyword}")
-                all_threats = await intel_client.gather_optimized_intel(primary_keyword)
+            # Use LLM for threat intelligence gathering
+            primary_keyword = keywords[0] if keywords else product_info.get('name', '')
+            print(f"   Gathering comprehensive intelligence for: {primary_keyword}")
+            
+            # Generate threat intelligence using LLM
+            threat_prompt = f"""
+            Analyze security threats for: {primary_keyword}
+            
+            Provide a comprehensive threat analysis including:
+            1. Known vulnerabilities (CVEs)
+            2. Common attack vectors
+            3. MITRE ATT&CK techniques
+            4. Risk severity levels
+            
+            Format as JSON array with fields: title, description, severity, cve_id, cvss_score, mitre_technique
+            """
+            
+            try:
+                response = await self.llm.generate_response(threat_prompt)
+                # Parse LLM response to extract threats
+                all_threats = self._parse_llm_threats(response)
+            except Exception as e:
+                print(f"   LLM threat analysis failed: {e}")
+                all_threats = []
             
             if not all_threats:
                 print(f"   No threats found for {product_info.get('name', 'product')}")
@@ -38,13 +52,8 @@ class IntelligenceAgent:
                     'validation_summary': 'No actionable intelligence found'
                 }
             
-            # Apply multi-agent ranking optimization
-            print(f"   MULTI-AGENT RANKING: Optimizing {len(all_threats)} threats")
-            ranking_result = await self.ranking_orchestrator.optimize_threat_ranking(all_threats, primary_keyword)
-            optimized_threats = ranking_result['optimized_threats']
-            
             # Enhance threats with analyst-focused details
-            enhanced_threats = self.accuracy_enhancer.enhance_threat_details(optimized_threats)
+            enhanced_threats = self.accuracy_enhancer.enhance_threat_details(all_threats)
             
             print(f"   COMPREHENSIVE ANALYSIS: Found {len(enhanced_threats)} enhanced threats")
             
@@ -55,7 +64,7 @@ class IntelligenceAgent:
                 'risk_assessment': self._create_fallback_risk_assessment(enhanced_threats),
                 'mitre_mapping': [{'technique': 'T1190', 'tactic': 'Initial Access', 'description': 'Exploit Public-Facing Application'}],
                 'validation_summary': {'relevance_score': 0.8, 'data_quality': 'high'},
-                'optimization_metrics': ranking_result['optimization_metrics']
+                'analysis_method': 'LLM-based threat intelligence'
             }
             
         except Exception as e:
@@ -97,3 +106,26 @@ class IntelligenceAgent:
             return {'overall_risk_level': 'MEDIUM', 'risk_score': 6.0}
         else:
             return {'overall_risk_level': 'LOW', 'risk_score': 4.0}
+    
+    def _parse_llm_threats(self, response: str) -> List[Dict[str, Any]]:
+        """Parse LLM response to extract threat information"""
+        try:
+            # Try to extract JSON from response
+            import re
+            json_match = re.search(r'\[.*\]', response, re.DOTALL)
+            if json_match:
+                threats_data = json.loads(json_match.group())
+                return threats_data
+            else:
+                # Fallback: create basic threat from text
+                return [{
+                    'title': 'General Security Threat',
+                    'description': response[:200] + '...' if len(response) > 200 else response,
+                    'severity': 'MEDIUM',
+                    'cve_id': 'N/A',
+                    'cvss_score': '5.0',
+                    'mitre_technique': 'T1190'
+                }]
+        except Exception as e:
+            print(f"   Failed to parse LLM response: {e}")
+            return []
