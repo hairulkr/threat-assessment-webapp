@@ -1024,10 +1024,8 @@ class ThreatModelingWebApp:
                                 use_container_width=True,
                                 help=help_text
                             ):
-                                st.session_state.selected_product = name
-                                # Clear the final_product_input to force update
-                                if 'final_product_input' in st.session_state:
-                                    del st.session_state.final_product_input
+                                # Update the main product search input
+                                st.session_state.product_search = name
                                 st.rerun()
                 
                 elif len(product_input) > 2 and st.session_state.get('last_search') == product_input:
@@ -1041,16 +1039,9 @@ class ThreatModelingWebApp:
             # Assessment form
             if product_input:
                 with st.form("assessment_form"):
-                    # Show the product name that will be assessed (editable)
-                    # Use selected product if available, otherwise use input
-                    default_value = st.session_state.get('selected_product', product_input)
-                    # Clear selected_product after using it to avoid persistence
-                    if st.session_state.get('selected_product'):
-                        st.session_state.selected_product = ''
-                    
                     final_product = st.text_input(
                         "Product to assess:",
-                        value=default_value,
+                        value=product_input,
                         disabled=False,
                         help="You can edit this product name before starting the assessment",
                         key="final_product_input"
