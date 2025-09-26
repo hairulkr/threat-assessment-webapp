@@ -344,36 +344,6 @@ def get_available_providers() -> Dict[str, Dict[str, str]]:
     """Get status of all available LLM providers"""
     providers = {}
     
-    # Check Gemini models
-    gemini_models = {
-        "gemini-2.0-flash": {"name": "Gemini 2.0 Flash", "desc": "Fast responses"},
-        "gemini-2.5-flash": {"name": "Gemini 2.5 Flash", "desc": "Balanced speed/quality"}
-    }
-    
-    for model_id, model_info in gemini_models.items():
-        gemini_client = LLMClient("gemini", model=model_id)
-        status = gemini_client.get_status()
-        # Extract version properly: gemini-2.0-flash -> 2.0-flash
-        version_part = model_id.replace('gemini-', '')
-        providers[f"gemini-{version_part}"] = {
-            "status": status["status"],
-            "model": model_info["name"],
-            "description": model_info["desc"],
-            "provider": "Gemini",
-            "model_id": model_id
-        }
-    
-    # Check Perplexity
-    perplexity_client = LLMClient("perplexity")
-    status = perplexity_client.get_status()
-    providers["perplexity"] = {
-        "status": status["status"],
-        "model": "Sonar Pro",
-        "description": "Web-enhanced intelligence",
-        "provider": "Perplexity",
-        "model_id": "sonar-pro"
-    }
-    
     # Check Ollama models (cloud available)
     ollama_models = {
         "gpt-oss:20b-cloud": {"name": "GPT-OSS 20B", "desc": "Fast open source model"},

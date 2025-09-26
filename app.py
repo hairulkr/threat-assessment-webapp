@@ -183,7 +183,7 @@ class ThreatModelingWebApp:
             'assessment_running': False,
             'usage_tracker': DailyUsageTracker(),
             'show_methodology': False,
-            'selected_llm_provider': 'gemini-2.0-flash',
+            'selected_llm_provider': 'ollama-gpt-oss-120b-cloud',
             # Session management
             'authenticated': False,
             'login_attempts': 0,
@@ -205,16 +205,12 @@ class ThreatModelingWebApp:
         
         if provider_key in providers:
             provider_info = providers[provider_key]
-            if provider_info['provider'] == 'Gemini':
-                llm = LLMClient('gemini', model=provider_info['model_id'])
-            elif provider_info['provider'] == 'Perplexity':
-                llm = LLMClient('perplexity')
-            elif provider_info['provider'] == 'Ollama':
+            if provider_info['provider'] == 'Ollama':
                 llm = LLMClient('ollama', model=provider_info['model_id'])
             else:
-                llm = LLMClient('gemini')
+                llm = LLMClient('ollama', model='gpt-oss:120b-cloud')
         else:
-            llm = LLMClient('gemini')
+            llm = LLMClient('ollama', model='gpt-oss:120b-cloud')
         
         if not llm.is_available():
             st.error(f"❌ {provider.title()} API key not found in secrets or environment variables")
@@ -798,7 +794,7 @@ class ThreatModelingWebApp:
             # Provider selection
             if provider_options:
                 selected_idx = 0
-                current_provider = st.session_state.get('selected_llm_provider', 'gemini-2.0-flash')
+                current_provider = st.session_state.get('selected_llm_provider', 'ollama-gpt-oss-120b-cloud')
                 if current_provider in provider_options:
                     selected_idx = provider_options.index(current_provider)
                 
@@ -817,7 +813,7 @@ class ThreatModelingWebApp:
                     selected_info = providers[selected_provider]
                 else:
                     # Reset to default if key doesn't exist
-                    selected_provider = list(providers.keys())[0] if providers else 'gemini-2.0-flash'
+                    selected_provider = list(providers.keys())[0] if providers else 'ollama-gpt-oss-120b-cloud'
                     st.session_state.selected_llm_provider = selected_provider
                     selected_info = providers.get(selected_provider, {})
                 
@@ -826,13 +822,7 @@ class ThreatModelingWebApp:
                     st.info(f"**Provider:** {selected_info['provider']}")
                 elif selected_info:
                     st.error(f"❌ {selected_info.get('model', 'Unknown')} - API Key Missing")
-                    provider = selected_info.get('provider', '')
-                    if provider == "Gemini":
-                        st.info("Add GEMINI_API_KEY to Streamlit secrets or environment variables")
-                    elif provider == "Perplexity":
-                        st.info("Add PERPLEXITY_API_KEY to Streamlit secrets or environment variables")
-                    elif provider == "Ollama":
-                        st.info("Add OLLAMA_API_KEY to Streamlit secrets or environment variables")
+                    st.info("Add OLLAMA_API_KEY to Streamlit secrets or environment variables")
                 else:
                     st.error("❌ No AI models available")
             else:
@@ -972,17 +962,14 @@ class ThreatModelingWebApp:
                     except:
                         api_key = os.getenv('GEMINI_API_KEY')
                     
-                    provider_key = st.session_state.get('selected_llm_provider', 'gemini-2.0-flash')
+                    provider_key = st.session_state.get('selected_llm_provider', 'ollama-gpt-oss-120b-cloud')
                     providers = get_available_providers()
                     
                     if provider_key in providers:
                         provider_info = providers[provider_key]
-                        if provider_info['provider'] == 'Gemini':
-                            llm = LLMClient('gemini', model=provider_info['model_id'])
-                        else:
-                            llm = LLMClient('perplexity')
+                        llm = LLMClient('ollama', model=provider_info['model_id'])
                     else:
-                        llm = LLMClient('gemini')
+                        llm = LLMClient('ollama', model='gpt-oss:120b-cloud')
                     if llm.is_available():
                         with st.status("🤖 AI is completing your input...", expanded=False):
                             product_agent = ProductInfoAgent(llm)
