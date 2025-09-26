@@ -18,16 +18,31 @@ class SimpleReportAgent:
         product_name = all_data.get('product_name', 'Unknown Product')
         threats = all_data.get('threats', [])
         
-        # Create simple threat summary
-        threat_list = []
-        for threat in threats[:10]:
-            cve_id = threat.get('cve_id', 'N/A')
-            title = threat.get('title', 'Unknown')
-            severity = threat.get('severity', 'MEDIUM')
-            threat_list.append(f"- {cve_id}: {title} ({severity})")
+        print(f"📊 SimpleReportAgent: Received {len(threats)} threats for {product_name}")
         
-        # Single comprehensive prompt
-        prompt = f"""Generate a complete HTML threat modeling report for {product_name}.
+        # If no threats found, generate report anyway with LLM analysis
+        if not threats or len(threats) == 0:
+            prompt = f"""Generate a complete HTML threat modeling report for {product_name}.
+
+No specific CVE threats were found in databases, but analyze common security risks for this product.
+
+Generate a professional HTML report with:
+1. Executive Summary - explain why no specific CVEs were found
+2. General Security Analysis - common risks for this type of product
+3. Attack Scenarios (2-3 realistic scenarios based on product type)
+4. Security Recommendations
+
+Use proper HTML tags. Return ONLY the HTML content (no markdown, no code blocks)."""
+        else:
+            # Create threat summary
+            threat_list = []
+            for threat in threats[:10]:
+                cve_id = threat.get('cve_id', 'N/A')
+                title = threat.get('title', 'Unknown')
+                severity = threat.get('severity', 'MEDIUM')
+                threat_list.append(f"- {cve_id}: {title} ({severity})")
+            
+            prompt = f"""Generate a complete HTML threat modeling report for {product_name}.
 
 THREATS FOUND:
 {chr(10).join(threat_list)}
@@ -46,6 +61,7 @@ Use proper HTML tags and include:
 Return ONLY the HTML content (no markdown, no code blocks)."""
 
         try:
+            print(f"🤖 Generating report with LLM...")
             report_content = await asyncio.wait_for(
                 self.llm.generate(prompt, max_tokens=4000),
                 timeout=120
@@ -55,37 +71,75 @@ Return ONLY the HTML content (no markdown, no code blocks)."""
             report_content = report_content.strip()
             if report_content.startswith('```html'):
                 report_content = report_content.replace('```html', '').replace('```', '')
+            if report_content.startswith('```'):
+                report_content = report_content.replace('```', '', 1).rsplit('```', 1)[0]
             
             print(f"✅ SIMPLE REPORT GENERATED: {len(report_content)} characters")
             return report_content
             
         except Exception as e:
             print(f"⚠️ Report generation failed: {e}")
+            # Always return something, never None
             return self._generate_fallback_report(product_name, threats)
     
     def _generate_fallback_report(self, product_name: str, threats: list) -> str:
-        """Simple fallback report"""
+        """Enhanced fallback report"""
         threat_count = len(threats)
         
-        return f"""
-        <h1>Threat Assessment Report - {product_name}</h1>
-        
-        <h2>Executive Summary</h2>
-        <p>This assessment identified <strong>{threat_count} potential threats</strong> for {product_name}.</p>
-        
-        <h2>Key Findings</h2>
-        <ul>
-        {"".join([f'<li><span class="cve-badge">{t.get("cve_id", "N/A")}</span> - {t.get("title", "Unknown")} (<span class="severity-{t.get("severity", "MEDIUM")}">{t.get("severity", "MEDIUM")}</span>)</li>' for t in threats[:5]])}
-        </ul>
-        
-        <h2>Recommendations</h2>
-        <ul>
-        <li>Keep software updated with latest security patches</li>
-        <li>Implement network segmentation and monitoring</li>
-        <li>Deploy multi-factor authentication</li>
-        <li>Conduct regular security assessments</li>
-        </ul>
-        """
+        if threat_count == 0:
+            return f"""
+            <h1>Threat Assessment Report - {product_name}</h1>
+            
+            <h2>Executive Summary</h2>
+            <p>This assessment analyzed <strong>{product_name}</strong> for security vulnerabilities. While no specific CVE entries were found in current databases, this doesn't mean the product is risk-free.</p>
+            
+            <h2>General Security Analysis</h2>
+            <p>Common security considerations for software products like {product_name}:</p>
+            <ul>
+            <li><strong>Code Injection Risks</strong> - Input validation vulnerabilities</li>
+            <li><strong>Authentication Bypass</strong> - Weak authentication mechanisms</li>
+            <li><strong>Privilege Escalation</strong> - Improper access controls</li>
+            <li><strong>Data Exposure</strong> - Sensitive information disclosure</li>
+            </ul>
+            
+            <h2>Attack Scenarios</h2>
+            <h3>Scenario A: Code Injection Attack</h3>
+            <p>Attacker exploits input validation weaknesses to execute malicious code.</p>
+            
+            <h3>Scenario B: Privilege Escalation</h3>
+            <p>Local user gains elevated privileges through application vulnerabilities.</p>
+            
+            <h2>Security Recommendations</h2>
+            <ul>
+            <li>Implement regular security updates and patch management</li>
+            <li>Deploy input validation and sanitization</li>
+            <li>Use principle of least privilege</li>
+            <li>Enable security logging and monitoring</li>
+            <li>Conduct regular security assessments</li>
+            </ul>
+            
+            <p><em>Note: This analysis is based on general security principles. For detailed vulnerability assessment, consider professional penetration testing.</em></p>
+            """
+        else:
+            return f"""
+            <h1>Threat Assessment Report - {product_name}</h1>
+            
+            <h2>Executive Summary</h2>
+            <p>This assessment identified <strong>{threat_count} potential threats</strong> for {product_name}.</p>
+            
+            <h2>Key Findings</h2>
+            <ul>
+            {"".join([f'<li><span class="cve-badge">{t.get("cve_id", "N/A")}</span> - {t.get("title", "Unknown")} (<span class="severity-{t.get("severity", "MEDIUM")}">{t.get("severity", "MEDIUM")}</span>)</li>' for t in threats[:5]])}
+            </ul>
+            
+            <h2>Recommendations</h2>
+            <ul>
+            <li>Keep software updated with latest security patches</li>
+            <li>Implement network segmentation and monitoring</li>
+            <li>Deploy multi-factor authentication</li>
+            <li>Conduct regular security assessments</li>
+            </ul>
+            """
     
     def save_html_report(self, report_content: str, product_name: str) -> str:
         """Save report with simple HTML template"""
