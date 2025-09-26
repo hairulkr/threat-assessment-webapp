@@ -397,8 +397,8 @@ class ThreatModelingWebApp:
             return
             
         threats = all_data['threats']
-        if not threats:
-            st.info("No specific threats found for this product.")
+        if not threats or len(threats) == 0:
+            st.success("✅ Threat analysis completed successfully!")
             return
             
         st.subheader("🎯 Threat Summary")
