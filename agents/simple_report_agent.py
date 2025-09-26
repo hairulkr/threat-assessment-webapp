@@ -29,15 +29,17 @@ No specific CVE threats were found in databases, but analyze common security ris
 Generate a professional HTML report with:
 1. Executive Summary - explain why no specific CVEs were found
 2. General Security Analysis - common risks for this type of product
-3. Attack Flow Analysis (2-3 realistic attack flows mapped to MITRE ATT&CK techniques)
+3. Attack Flow Analysis (2-3 attack flows based on actual CVE types, mapped to MITRE ATT&CK)
 4. Security Recommendations
 
-For attack flows, use this format with proper MITRE ATT&CK mapping:
+Analyze the product type and create realistic attack flows with MITRE mapping:
+- For code editors: T1059 (Command Execution), T1055 (Process Injection)
+- For web apps: T1190 (Exploit Public-Facing), T1078 (Valid Accounts)
+- For databases: T1190 (SQL Injection), T1005 (Data Collection)
+
+Use format:
 <h3>Attack Flow A: [Attack Name]</h3>
-<p><strong>Initial Access:</strong> <span class="mitre-badge">T1190</span> [Technique Name] - [Description]</p>
-<p><strong>Execution:</strong> <span class="mitre-badge">T1059</span> [Technique Name] - [Description]</p>
-<p><strong>Persistence:</strong> <span class="mitre-badge">T1053</span> [Technique Name] - [Description]</p>
-<p><strong>Impact:</strong> <span class="mitre-badge">T1486</span> [Technique Name] - [Description]</p>
+<p><strong>[Tactic]:</strong> <span class="mitre-badge">[ID]</span> [Technique] - [Description]</p>
 
 Return ONLY the HTML content (no markdown, no code blocks)."""
         else:
@@ -57,13 +59,23 @@ THREATS FOUND:
 Generate a professional HTML report with:
 1. Executive Summary
 2. Threat Analysis with CVE details
-3. Attack Flow Analysis (2-3 attack flows mapped to MITRE ATT&CK)
+3. Attack Flow Analysis (2-3 attack flows mapped to MITRE ATT&CK based on actual CVE types)
 4. Recommendations
 
 Use proper HTML tags and include:
 - <span class="cve-badge">{cve_id}</span> for CVE references
 - <span class="mitre-badge">{technique}</span> for MITRE techniques
 - <span class="severity-{severity}">{severity}</span> for severity levels
+
+For attack flows, analyze the SPECIFIC CVE types found and map to appropriate MITRE techniques:
+- Remote code execution CVEs → T1190 (Exploit Public-Facing Application)
+- Privilege escalation CVEs → T1068 (Exploitation for Privilege Escalation)
+- Buffer overflow CVEs → T1055 (Process Injection)
+- Authentication bypass CVEs → T1078 (Valid Accounts)
+- Information disclosure CVEs → T1005 (Data from Local System)
+- Denial of service CVEs → T1499 (Endpoint Denial of Service)
+
+Create attack flows based on the ACTUAL CVE vulnerabilities found, not generic scenarios.
 
 Return ONLY the HTML content (no markdown, no code blocks)."""
 

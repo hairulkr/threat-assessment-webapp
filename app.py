@@ -1224,6 +1224,7 @@ class ThreatModelingWebApp:
                             margin: 0;
                             padding: 0;
                             line-height: 1.6;
+                            width: 100%;
                         }}
                         .report-container {{
                             width: 100%;
