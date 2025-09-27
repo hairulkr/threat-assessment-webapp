@@ -181,9 +181,13 @@ Return ONLY the HTML content (no markdown, no code blocks)."""
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Threat Report - {product_name}</title>
     <style>
-        body {{ font-family: Arial, sans-serif; width: 100%; margin: 0; padding: 0; }}
-        h1 {{ color: #2563eb; border-bottom: 2px solid #2563eb; }}
-        h2 {{ color: #374151; margin-top: 30px; }}
+        body {{ font-family: Arial, sans-serif; width: 100%; margin: 0; padding: 0; overflow-x: hidden; }}
+        h1 {{ color: #2563eb; border-bottom: 2px solid #2563eb; margin-left: 0; padding-left: 0; }}
+        h2 {{ color: #374151; margin-top: 30px; margin-left: 0; padding-left: 0; }}
+        h3 {{ margin-left: 0; padding-left: 0; }}
+        p {{ margin-left: 0; padding-left: 0; }}
+        ul {{ margin-left: 0; padding-left: 20px; }}
+        li {{ margin-left: 0; }}
         .cve-badge {{ background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; }}
         .mitre-badge {{ background: #2563eb; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; }}
         .severity-CRITICAL {{ background: #991b1b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; }}

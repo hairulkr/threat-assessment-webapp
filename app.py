@@ -1230,7 +1230,7 @@ class ThreatModelingWebApp:
                             width: 100%;
                             margin: 0;
                             background: #ffffff;
-                            padding: 10px;
+                            padding: 0;
                             box-sizing: border-box;
                         }}
                         h1 {{
