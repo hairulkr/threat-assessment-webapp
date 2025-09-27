@@ -1229,9 +1229,12 @@ class ThreatModelingWebApp:
                         .report-container {{
                             width: 100%;
                             margin: 0;
-                            background: #ffffff;
                             padding: 0;
+                            background: #ffffff;
                             box-sizing: border-box;
+                            position: absolute;
+                            left: 0;
+                            top: 0;
                         }}
                         h1 {{
                             color: #2c3e50;
