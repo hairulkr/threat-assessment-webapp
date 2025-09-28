@@ -226,7 +226,7 @@ class ThreatModelingWebApp:
         # Streamlined 4-agent architecture
         agents = {
             'product': ProductInfoAgent(llm),
-            'intelligence': IntelligenceAgent(llm, api_keys=api_keys),
+            'intelligence': IntelligenceAgent(llm, api_keys),
             'controls': ControlsAgent(llm),
             'report': ReportAgent(llm)
         }
