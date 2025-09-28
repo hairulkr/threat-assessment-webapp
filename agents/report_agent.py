@@ -24,103 +24,114 @@ class ReportAgent:
         return []
     
     async def generate_dynamic_attack_flow(self, threats, product_name: str) -> str:
-        """Generate dynamic attack flow based on actual threat intelligence"""
+        """Generate LLM-powered Mermaid diagram with structured output"""
         if not threats:
             return self._create_css_fallback_diagram(product_name)
         
         # Create threat summary for LLM
         threat_summary = []
-        for threat in threats[:8]:
+        for threat in threats[:5]:
             cve_id = threat.get('cve_id', 'N/A')
-            title = threat.get('title', 'Unknown')[:50]
+            title = threat.get('title', 'Unknown')[:40]
             severity = threat.get('severity', 'MEDIUM')
             threat_summary.append(f"- {cve_id}: {title} ({severity})")
         
         prompt = f"""
-Analyze these specific threats for {product_name}:
+Generate a Mermaid flowchart for attack flow based on these threats for {product_name}:
 {chr(10).join(threat_summary)}
 
-Create a realistic attack flow with 3-8 steps based on ACTUAL vulnerabilities found.
-Return ONLY this JSON format:
+Return ONLY valid Mermaid syntax in this exact format:
 
-{{
-  "attack_flow": [
-    {{"step": 1, "phase": "Initial Access", "technique": "T1190", "description": "Exploit web vulnerability"}},
-    {{"step": 2, "phase": "Execution", "technique": "T1059", "description": "Run malicious script"}}
-  ]
-}}
+graph TD
+    A[Target: {product_name[:15]}] --> B[Initial Access T1190]
+    B --> C[Execution T1059]
+    C --> D[Persistence T1053]
+    D --> E[Impact T1486]
+
+Rules:
+- Use only letters A-Z for node IDs
+- Keep node labels under 25 characters
+- Include MITRE technique IDs
+- Base steps on actual CVE types found
+- Use --> for connections
+- Start with 'graph TD'
 """
         
         try:
             response = await asyncio.wait_for(
-                self.llm.generate(prompt, max_tokens=800),
-                timeout=45
+                self.llm.generate(prompt, max_tokens=400),
+                timeout=30
             )
             
-            # Extract JSON from response
-            import json
-            json_match = re.search(r'\{.*"attack_flow".*\}', response, re.DOTALL)
-            if json_match:
-                attack_data = json.loads(json_match.group(0))
-                return self._generate_safe_mermaid(attack_data['attack_flow'], product_name)
+            # Extract and validate Mermaid syntax
+            mermaid_content = self._extract_mermaid_syntax(response)
+            if mermaid_content:
+                return self._wrap_mermaid_diagram(mermaid_content)
             
         except Exception as e:
-            print(f"⚠️ Dynamic diagram generation failed: {e}")
+            print(f"⚠️ LLM Mermaid generation failed: {e}")
         
         return self._create_css_fallback_diagram(product_name)
     
 
     
-    def _generate_safe_mermaid(self, attack_flow: list, product_name: str) -> str:
-        """Generate safe Mermaid diagram from structured attack flow data"""
-        if not attack_flow:
-            return self._create_css_fallback_diagram(product_name)
+    def _extract_mermaid_syntax(self, response: str) -> str:
+        """Extract and validate Mermaid syntax from LLM response"""
+        # Look for mermaid content between various markers
+        patterns = [
+            r'```mermaid\n(.*?)```',
+            r'```\n(graph TD.*?)```',
+            r'(graph TD.*?)(?=\n\n|$)',
+            r'```(graph TD.*?)```'
+        ]
         
-        # Sanitize product name
-        safe_product = re.sub(r'[^a-zA-Z0-9\s]', '', product_name)[:15]
+        for pattern in patterns:
+            match = re.search(pattern, response, re.DOTALL | re.IGNORECASE)
+            if match:
+                mermaid_content = match.group(1).strip()
+                if self._validate_mermaid_syntax(mermaid_content):
+                    return mermaid_content
         
-        # Build mermaid with safe syntax
-        mermaid_lines = ["graph TD"]
-        mermaid_lines.append(f"    Target[{safe_product}]")
-        
-        for i, step in enumerate(attack_flow[:8], 1):
-            node_id = f"S{i}"
-            # Sanitize all text - only alphanumeric and spaces
-            safe_desc = re.sub(r'[^a-zA-Z0-9\s]', '', step.get('description', ''))[:12]
-            safe_technique = re.sub(r'[^T0-9.]', '', step.get('technique', 'T1059'))[:8]
-            
-            mermaid_lines.append(f"    {node_id}[{safe_desc} {safe_technique}]")
-            
-            if i == 1:
-                mermaid_lines.append(f"    Target --> {node_id}")
-            else:
-                mermaid_lines.append(f"    S{i-1} --> {node_id}")
-        
-        mermaid = "\n".join(mermaid_lines)
-        
+        return None
+    
+    def _validate_mermaid_syntax(self, content: str) -> bool:
+        """Basic validation of Mermaid syntax"""
+        if not content.startswith('graph TD'):
+            return False
+        if '-->' not in content:
+            return False
+        if '[' not in content or ']' not in content:
+            return False
+        return True
+    
+    def _wrap_mermaid_diagram(self, mermaid_content: str) -> str:
+        """Wrap validated Mermaid content in HTML"""
         return f"""
 <div class="diagram-container">
-    <h3>🎯 Dynamic Attack Flow Analysis</h3>
+    <h3>🎯 LLM-Generated Attack Flow</h3>
     <div class="mermaid">
-{mermaid}
+{mermaid_content}
     </div>
 </div>"""
     
 
     
     async def parse_and_generate_diagrams(self, report_content: str, threats, product_name: str) -> str:
-        """Generate dynamic attack flow diagram and insert into report"""
-        # Generate single dynamic attack flow diagram
+        """Generate LLM-powered Mermaid diagrams and insert into report"""
+        # Generate attack flow diagram using LLM
         attack_flow_diagram = await self.generate_dynamic_attack_flow(threats, product_name)
         
-        # Insert diagram after first heading
-        heading_match = re.search(r'<h[1-3][^>]*>.*?</h[1-3]>', report_content)
-        if heading_match:
-            insert_pos = heading_match.end()
+        # Insert diagram after executive summary or first heading
+        summary_match = re.search(r'(<h2[^>]*>Executive Summary</h2>.*?</p>)', report_content, re.DOTALL | re.IGNORECASE)
+        if summary_match:
+            insert_pos = summary_match.end()
             report_content = report_content[:insert_pos] + "\n" + attack_flow_diagram + report_content[insert_pos:]
         else:
-            # Insert at beginning if no heading found
-            report_content = attack_flow_diagram + "\n" + report_content
+            # Fallback: insert after first heading
+            heading_match = re.search(r'<h[1-3][^>]*>.*?</h[1-3]>', report_content)
+            if heading_match:
+                insert_pos = heading_match.end()
+                report_content = report_content[:insert_pos] + "\n" + attack_flow_diagram + report_content[insert_pos:]
         
         return report_content
     
@@ -198,10 +209,14 @@ Return ONLY this JSON format:
             # Convert to professional HTML format
             report_content = self.professional_formatter.convert_markdown_to_html(report_content)
             
-            # Generate diagrams for scenarios using batch processing
+            # Generate LLM-powered Mermaid diagrams
             threats = all_data.get('threats', [])
             product_name = all_data.get('product_name', 'Unknown Product')
             report_content = await self.parse_and_generate_diagrams(report_content, threats, product_name)
+            
+            # Add Mermaid.js script for diagram rendering
+            if '<div class="mermaid">' in report_content:
+                report_content += '\n<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>\n<script>mermaid.initialize({startOnLoad:true});</script>'
             
             print(f"   ✅ REPORT GENERATED: {len(report_content)} characters, confidence {validation_result.get('confidence_score', 0)}/10")
             

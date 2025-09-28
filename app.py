@@ -30,7 +30,7 @@ try:
     from agents.product_info_agent import ProductInfoAgent
     from agents.intelligence_agent import IntelligenceAgent
     from agents.controls_agent import ControlsAgent
-    from agents.simple_report_agent import SimpleReportAgent as ReportAgent
+    from agents.report_agent import ReportAgent
 except Exception as e:
     import streamlit as st
     st.error(f"Error importing modules: {e}")
@@ -357,12 +357,13 @@ class ThreatModelingWebApp:
                         timeout=180
                     )
                     
-                    if report_content is None:
-                        progress_bar.progress(100)
-                        st.session_state.assessment_running = False
-                        status_text.markdown("**⚠️ Analysis terminated due to insufficient data**")
-                        st.warning("Analysis terminated: No actionable threat intelligence found. Please try a different product name.")
-                        return None, None
+                    # Check for termination recommendation from professional report agent
+                if report_content is None:
+                    progress_bar.progress(100)
+                    st.session_state.assessment_running = False
+                    status_text.markdown("**⚠️ Analysis terminated due to insufficient data quality**")
+                    st.warning("Analysis terminated: Data quality validation failed. No actionable threat intelligence found with sufficient confidence. Please try a different product name or check API connectivity.")
+                    return None, None
                         
                 except asyncio.TimeoutError:
                     st.warning("Report generation timed out - generating basic report")

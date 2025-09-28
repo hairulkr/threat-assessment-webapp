@@ -59,23 +59,33 @@ THREATS FOUND:
 Generate a professional HTML report with:
 1. Executive Summary
 2. Threat Analysis with CVE details
-3. Attack Flow Analysis (2-3 attack flows mapped to MITRE ATT&CK based on actual CVE types)
+3. Attack Flow Analysis with Mermaid diagram
 4. Recommendations
+
+For the attack flow, include a Mermaid diagram like this:
+<div class="diagram-container">
+    <h3>🎯 Attack Flow Analysis</h3>
+    <div class="mermaid">
+graph TD
+    A[Target: {product_name[:15]}] --> B[Initial Access T1190]
+    B --> C[Execution T1059]
+    C --> D[Persistence T1053]
+    D --> E[Impact T1486]
+    </div>
+</div>
 
 Use proper HTML tags and include:
 - <span class="cve-badge">{cve_id}</span> for CVE references
 - <span class="mitre-badge">{technique}</span> for MITRE techniques
 - <span class="severity-{severity}">{severity}</span> for severity levels
 
-For attack flows, analyze the SPECIFIC CVE types found and map to appropriate MITRE techniques:
+Map CVE types to MITRE techniques:
 - Remote code execution CVEs → T1190 (Exploit Public-Facing Application)
 - Privilege escalation CVEs → T1068 (Exploitation for Privilege Escalation)
 - Buffer overflow CVEs → T1055 (Process Injection)
 - Authentication bypass CVEs → T1078 (Valid Accounts)
 - Information disclosure CVEs → T1005 (Data from Local System)
 - Denial of service CVEs → T1499 (Endpoint Denial of Service)
-
-Create attack flows based on the ACTUAL CVE vulnerabilities found, not generic scenarios.
 
 Return ONLY the HTML content (no markdown, no code blocks)."""
 
@@ -197,7 +207,15 @@ Return ONLY the HTML content (no markdown, no code blocks)."""
         table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
         th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
         th {{ background-color: #f2f2f2; }}
+        .diagram-container {{ margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6; }}
+        .mermaid {{ background: white; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb; }}
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {{
+            mermaid.initialize({{ startOnLoad: true, theme: 'default' }});
+        }});
+    </script>
 </head>
 <body>
     {report_content}
