@@ -215,13 +215,18 @@ class ThreatModelingWebApp:
             st.error(f"❌ {provider.title()} API key not found in secrets or environment variables")
             return None, None
         
-        # Initialize enhanced 4-agent architecture with monitoring
-        from agents.agent_monitor import AGENT_MONITOR
-        from agents.error_handler import AgentErrorHandler
+        # API keys for 17-source threat intelligence
+        api_keys = {
+            'nvd_api_key': os.getenv('NVD_API_KEY'),
+            'github_token': os.getenv('GITHUB_TOKEN'),
+            'google_cse_key': os.getenv('GOOGLE_CSE_KEY'),
+            'google_cse_id': os.getenv('GOOGLE_CSE_ID')
+        }
         
+        # Streamlined 4-agent architecture
         agents = {
             'product': ProductInfoAgent(llm),
-            'intelligence': IntelligenceAgent(llm),
+            'intelligence': IntelligenceAgent(llm, api_keys),
             'controls': ControlsAgent(llm),
             'report': ReportAgent(llm)
         }
@@ -244,18 +249,11 @@ class ThreatModelingWebApp:
             progress_bar.progress(10)
             
             with st.spinner("🔍 Analyzing product information..."):
-                product_result = await AgentErrorHandler.execute_with_retry(
-                    'product',
-                    lambda data: agents['product'].gather_info(data['product_name']),
-                    {'product_name': product_name},
-                    lambda data: self._fallback_product_info(data['product_name'])
-                )
-                
-                if not product_result.success:
-                    st.error(f"Product analysis failed: {product_result.error}")
-                    return None, None
-                
-                product_info = product_result.data
+                try:
+                    product_info = await agents['product'].gather_info(product_name)
+                except Exception as e:
+                    print(f"Product analysis failed: {e}")
+                    product_info = await self._fallback_product_info(product_name)
             
             status_box.success("Product information gathered successfully")
             all_data["product_info"] = product_info
@@ -283,47 +281,40 @@ class ThreatModelingWebApp:
             source_status.empty()
             status_box.success("✅ **Ready for comprehensive analysis**")
             
-            # Step 3: Comprehensive Intelligence Analysis
-            status_text.markdown("**🧠 Step 3: Comprehensive intelligence analysis...**")
+            # Step 3: LLM-Driven Threat Intelligence & Ranking
+            status_text.markdown("**🎯 Step 3: Gathering & ranking threats by relevance...**")
             progress_bar.progress(40)
             
-            # Show comprehensive analysis status
+            # Show analysis status
             intel_status = st.empty()
-            intel_status.info("🧠 **Comprehensive Analysis:** Threat intelligence + context + risk assessment in single analysis...")
+            intel_status.info("🎯 **LLM Analysis:** Gathering threat intelligence and ranking by product relevance...")
             
-            intel_result = await AgentErrorHandler.execute_with_retry(
-                'intelligence',
-                lambda data: agents['intelligence'].comprehensive_analysis(data['product_info']),
-                {'product_info': product_info}
-            )
-            
-            if not intel_result.success:
-                st.error(f"Comprehensive analysis failed: {intel_result.error}")
+            try:
+                comprehensive_result = await agents['intelligence'].gather_and_rank_threats(product_info)
+            except Exception as e:
+                st.error(f"Threat intelligence failed: {e}")
                 return None, None
             
-            comprehensive_result = intel_result.data
-            
             intel_status.empty()
-            status_box.success("✅ **Comprehensive Analysis Complete:** Threat intelligence, context, and risk assessment finished")
+            status_box.success("✅ **Threat Intelligence Complete:** Threats gathered and ranked by relevance")
             
-            # Update all_data with comprehensive results
+            # Update all_data with results
             all_data["threats"] = comprehensive_result.get('threats', [])
-            all_data["threat_context"] = comprehensive_result.get('threat_context', {})
-            all_data["risks"] = comprehensive_result.get('risk_assessment', {})
-            all_data["mitre_mapping"] = comprehensive_result.get('mitre_mapping', [])
-            all_data["validation_summary"] = comprehensive_result.get('validation_summary', {})
+            all_data["risk_assessment"] = comprehensive_result.get('risk_assessment', {})
             
             progress_bar.progress(60)
             
-            # Step 4: Security Controls
-            status_text.markdown("**🛡️ Step 4: Generating control recommendations...**")
+            # Step 4: MITRE-Mapped Security Controls
+            status_text.markdown("**🛡️ Step 4: Generating MITRE-mapped controls...**")
             
-            with st.spinner("🛡️ Generating security control recommendations..."):
+            with st.spinner("🛡️ Generating MITRE ATT&CK mapped security controls..."):
                 try:
-                    # Use comprehensive risk assessment for control recommendations
                     controls = await asyncio.wait_for(
-                        agents['controls'].propose_controls(comprehensive_result.get('risk_assessment', {})),
-                        timeout=150  # Increased for Perplexity
+                        agents['controls'].generate_mitre_controls(
+                            comprehensive_result.get('threats', []),
+                            comprehensive_result.get('risk_assessment', {})
+                        ),
+                        timeout=120
                     )
                 except asyncio.TimeoutError:
                     st.warning("Control generation timed out - using basic controls")
@@ -334,11 +325,11 @@ class ThreatModelingWebApp:
                         "corrective": ["Incident response plan", "Backup and recovery", "Security training"]
                     }
                 except Exception as e:
-                    st.warning(f"Control generation failed - using basic controls: {str(e)}")
+                    st.warning(f"MITRE control generation failed: {str(e)}")
                     controls = {
-                        "preventive": ["Multi-factor authentication", "Network segmentation", "Regular patching"],
-                        "detective": ["Security monitoring", "Log analysis", "Intrusion detection"],
-                        "corrective": ["Incident response plan", "Backup and recovery", "Security training"]
+                        "preventive": [{"control": "Multi-factor Authentication", "mitre_mitigation": "M1032"}],
+                        "detective": [{"control": "Network Monitoring", "mitre_mitigation": "M1047"}],
+                        "corrective": [{"control": "Incident Response Plan", "mitre_mitigation": "M1049"}]
                     }
             
             status_box.success("Security control framework established")
