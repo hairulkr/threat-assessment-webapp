@@ -349,12 +349,12 @@ class ThreatModelingWebApp:
                     )
                     
                     # Check for termination recommendation from professional report agent
-                if report_content is None:
-                    progress_bar.progress(100)
-                    st.session_state.assessment_running = False
-                    status_text.markdown("**⚠️ Analysis terminated due to insufficient data quality**")
-                    st.warning("Analysis terminated: Data quality validation failed. No actionable threat intelligence found with sufficient confidence. Please try a different product name or check API connectivity.")
-                    return None, None
+                    if report_content is None:
+                        progress_bar.progress(100)
+                        st.session_state.assessment_running = False
+                        status_text.markdown("**⚠️ Analysis terminated due to insufficient data quality**")
+                        st.warning("Analysis terminated: Data quality validation failed. No actionable threat intelligence found with sufficient confidence. Please try a different product name or check API connectivity.")
+                        return None, None
                         
                 except asyncio.TimeoutError:
                     st.warning("Report generation timed out - generating basic report")
