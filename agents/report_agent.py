@@ -23,6 +23,88 @@ class ReportAgent:
         # Return empty list - let LLM analyze threats and create scenarios dynamically
         return []
     
+    def _extract_scenario_threats(self, scenario_content: str, all_threats) -> list:
+        """Extract threats relevant to a specific scenario"""
+        scenario_threats = []
+        
+        # Look for CVE IDs mentioned in the scenario
+        cve_pattern = r'CVE-\d{4}-\d{4,}'
+        mentioned_cves = set(re.findall(cve_pattern, scenario_content, re.IGNORECASE))
+        
+        # Find threats that match mentioned CVEs
+        for threat in all_threats:
+            threat_cve = threat.get('cve_id', '')
+            if threat_cve in mentioned_cves:
+                scenario_threats.append(threat)
+        
+        # If no specific CVEs found, use first few threats
+        if not scenario_threats:
+            scenario_threats = all_threats[:2]
+        
+        return scenario_threats
+    
+    async def generate_scenario_diagram(self, threats, product_name: str, scenario_title: str) -> str:
+        """Generate scenario-specific Mermaid diagram"""
+        if not threats:
+            return self._create_css_fallback_diagram(product_name)
+        
+        # Extract scenario type from title
+        scenario_type = "Attack"
+        if "RCE" in scenario_title or "Remote Code" in scenario_title:
+            scenario_type = "RCE"
+        elif "Privilege" in scenario_title or "Escalation" in scenario_title:
+            scenario_type = "Privilege Escalation"
+        elif "Data" in scenario_title or "Exfiltration" in scenario_title:
+            scenario_type = "Data Breach"
+        
+        threat_summary = []
+        for threat in threats[:3]:
+            cve_id = threat.get('cve_id', 'N/A')
+            title = threat.get('title', 'Unknown')[:30]
+            severity = threat.get('severity', 'MEDIUM')
+            threat_summary.append(f"- {cve_id}: {title} ({severity})")
+        
+        prompt = f"""
+Generate a Mermaid flowchart for {scenario_type} scenario targeting {product_name}:
+{chr(10).join(threat_summary)}
+
+Return ONLY valid Mermaid syntax:
+
+graph TD
+    A[Attacker] --> B[{scenario_type[:15]}]
+    B --> C[Exploit CVE]
+    C --> D[Gain Access]
+    D --> E[Execute Payload]
+    E --> F[Achieve Goal]
+
+Rules:
+- Use only letters A-F for node IDs
+- Keep labels under 20 characters
+- Base on actual threat data
+- Use --> for connections
+"""
+        
+        try:
+            response = await asyncio.wait_for(
+                self.llm.generate(prompt, max_tokens=300),
+                timeout=20
+            )
+            
+            mermaid_content = self._extract_mermaid_syntax(response)
+            if mermaid_content:
+                return f"""
+<div class="diagram-container">
+    <h4>🎯 {scenario_type} Flow</h4>
+    <div class="mermaid">
+{mermaid_content}
+    </div>
+</div>"""
+            
+        except Exception as e:
+            print(f"⚠️ Scenario diagram generation failed: {e}")
+        
+        return self._create_css_fallback_diagram(product_name)
+    
     async def generate_dynamic_attack_flow(self, threats, product_name: str) -> str:
         """Generate LLM-powered Mermaid diagram with structured output"""
         if not threats:
@@ -117,21 +199,35 @@ Rules:
 
     
     async def parse_and_generate_diagrams(self, report_content: str, threats, product_name: str) -> str:
-        """Generate LLM-powered Mermaid diagrams and insert into report"""
-        # Generate attack flow diagram using LLM
-        attack_flow_diagram = await self.generate_dynamic_attack_flow(threats, product_name)
+        """Generate LLM-powered Mermaid diagrams and insert after each scenario"""
         
-        # Insert diagram after executive summary or first heading
-        summary_match = re.search(r'(<h2[^>]*>Executive Summary</h2>.*?</p>)', report_content, re.DOTALL | re.IGNORECASE)
-        if summary_match:
-            insert_pos = summary_match.end()
-            report_content = report_content[:insert_pos] + "\n" + attack_flow_diagram + report_content[insert_pos:]
-        else:
-            # Fallback: insert after first heading
-            heading_match = re.search(r'<h[1-3][^>]*>.*?</h[1-3]>', report_content)
-            if heading_match:
-                insert_pos = heading_match.end()
+        # Find all scenario sections (h3 headings that contain "Scenario" or threat-related keywords)
+        scenario_pattern = r'(<h3[^>]*>(?:.*?(?:Scenario|Attack|Threat|CVE|Vulnerability).*?)</h3>)(.*?)(?=<h[23]|$)'
+        scenarios = list(re.finditer(scenario_pattern, report_content, re.DOTALL | re.IGNORECASE))
+        
+        if not scenarios:
+            # Fallback: generate one diagram after executive summary
+            attack_flow_diagram = await self.generate_dynamic_attack_flow(threats, product_name)
+            summary_match = re.search(r'(<h2[^>]*>Executive Summary</h2>.*?</p>)', report_content, re.DOTALL | re.IGNORECASE)
+            if summary_match:
+                insert_pos = summary_match.end()
                 report_content = report_content[:insert_pos] + "\n" + attack_flow_diagram + report_content[insert_pos:]
+            return report_content
+        
+        # Generate diagrams for each scenario (process in reverse order to maintain positions)
+        for i, scenario_match in enumerate(reversed(scenarios)):
+            scenario_title = scenario_match.group(1)
+            scenario_content = scenario_match.group(2)
+            
+            # Extract relevant threats for this scenario
+            scenario_threats = self._extract_scenario_threats(scenario_content, threats)
+            
+            # Generate scenario-specific diagram
+            scenario_diagram = await self.generate_scenario_diagram(scenario_threats, product_name, scenario_title)
+            
+            # Insert diagram at the end of this scenario
+            insert_pos = scenario_match.end()
+            report_content = report_content[:insert_pos] + "\n" + scenario_diagram + report_content[insert_pos:]
         
         return report_content
     
