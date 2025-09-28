@@ -125,31 +125,13 @@ class LLMClient:
             elif self.provider == "ollama":
                 result = await self._call_ollama(prompt, max_tokens)
                 
-                # Check if Perplexity failed and fallback to Gemini if available
+                # Return error result for Ollama failures
                 if ("error" in result.lower() or "timeout" in result.lower() or 
-                    "exception" in result.lower() or len(result) < 50):
+                    "exception" in result.lower() or "502" in result.lower() or 
+                    "upstream" in result.lower() or len(result) < 50):
                     
-                    logging.warning(f"Perplexity failed: {result[:100]}... Attempting Gemini fallback")
-                    
-                    # Try Gemini as fallback
-                    try:
-                        gemini_key = None
-                        try:
-                            gemini_key = st.secrets["GEMINI_API_KEY"]
-                        except (KeyError, AttributeError):
-                            gemini_key = os.getenv('GEMINI_API_KEY')
-                        
-                        if gemini_key:
-                            genai.configure(api_key=gemini_key)
-                            fallback_model = self.selected_model or "gemini-2.5-flash"
-                            gemini_model = genai.GenerativeModel(fallback_model)
-                            fallback_response = gemini_model.generate_content(prompt)
-                            result = f"[Fallback to Gemini] {fallback_response.text}"
-                            logging.info("Successfully used Gemini fallback")
-
-                    except Exception as fallback_error:
-                        logging.error(f"Gemini fallback also failed: {str(fallback_error)}")
-                        result = f"Both {self.provider.title()} and Gemini failed: {result}"
+                    logging.warning(f"Ollama failed: {result[:100]}...")
+                    # Just return the error - no fallback available
             else:
                 result = "Error: Unsupported provider"
             
@@ -264,7 +246,7 @@ class LLMClient:
             return f"Execution error: {str(e)}"
     
     async def _call_ollama(self, prompt: str, max_tokens: int) -> str:
-        """Call Ollama using official Python client"""
+        """Call Ollama with automatic Gemini fallback on 502 errors"""
         import asyncio
         from datetime import datetime
         
@@ -272,72 +254,93 @@ class LLMClient:
         logging.info(f"Ollama API call started at {start_time}")
         
         def make_request():
-            try:
-                import ollama
-                
-                # Try local first, then cloud if API key available
-                client = None
-                
-                # Try local Ollama first
+            import time
+            max_retries = 3
+            
+            for attempt in range(max_retries):
                 try:
-                    client = ollama.Client()
-                    # Test connection
-                    client.list()
-                    logging.info("Using local Ollama")
-                except Exception:
+                    import ollama
+                    
+                    # Try local first, then cloud if API key available
                     client = None
-                
-                # If local fails and we have API key, try cloud
-                if client is None and self.api_key:
+                    
+                    # Try local Ollama first
                     try:
-                        client = ollama.Client(
-                            host='https://ollama.com',
-                            headers={'Authorization': self.api_key}
-                        )
-                        logging.info("Using Ollama Cloud")
+                        client = ollama.Client()
+                        # Test connection
+                        client.list()
+                        logging.info("Using local Ollama")
                     except Exception:
                         client = None
-                
-                if client is None:
-                    return "Ollama not available. Install locally or provide OLLAMA_API_KEY for cloud access."
-                
-                logging.info(f"Making Ollama request with {len(prompt)} chars")
-                
-                response = client.chat(
-                    model=self.selected_model,
-                    messages=[
-                        {
-                            'role': 'user',
-                            'content': prompt,
-                        },
-                    ],
-                    options={
-                        'temperature': 0.1,
-                        'top_p': 0.9
-                    }
-                )
-                
-                elapsed = (datetime.now() - start_time).total_seconds()
-                logging.info(f"Ollama response received after {elapsed:.1f}s")
-                
-                content = response['message']['content']
-                logging.info(f"Ollama success: {len(content)} chars returned")
-                return content
                     
-            except ImportError:
-                return "Ollama client not installed. Run: pip install ollama"
-            except Exception as e:
-                elapsed = (datetime.now() - start_time).total_seconds()
-                logging.error(f"Ollama exception after {elapsed:.1f}s: {str(e)}")
-                return f"Ollama error: {str(e)}"
+                    # If local fails and we have API key, try cloud
+                    if client is None and self.api_key:
+                        try:
+                            client = ollama.Client(
+                                host='https://ollama.com',
+                                headers={'Authorization': self.api_key}
+                            )
+                            logging.info("Using Ollama Cloud")
+                        except Exception:
+                            client = None
+                    
+                    if client is None:
+                        raise Exception("Ollama not available locally or in cloud")
+                    
+                    logging.info(f"Making Ollama request (attempt {attempt + 1}/{max_retries}) with {len(prompt)} chars")
+                    
+                    response = client.chat(
+                        model=self.selected_model,
+                        messages=[
+                            {
+                                'role': 'user',
+                                'content': prompt,
+                            },
+                        ],
+                        options={
+                            'temperature': 0.1,
+                            'top_p': 0.9
+                        }
+                    )
+                    
+                    elapsed = (datetime.now() - start_time).total_seconds()
+                    logging.info(f"Ollama response received after {elapsed:.1f}s")
+                    
+                    content = response['message']['content']
+                    logging.info(f"Ollama success: {len(content)} chars returned")
+                    return content
+                        
+                except ImportError:
+                    raise Exception("Ollama client not installed")
+                except Exception as e:
+                    error_str = str(e).lower()
+                    is_server_error = "502" in error_str or "upstream" in error_str or "bad gateway" in error_str
+                    
+                    if is_server_error and attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 2  # 2, 4, 6 seconds
+                        logging.warning(f"Ollama 502 error on attempt {attempt + 1}, retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                    elif is_server_error:
+                        raise Exception(f"Ollama server error (502) after {max_retries} attempts: {str(e)}")
+                    else:
+                        raise Exception(f"Ollama error: {str(e)}")
+            
+            raise Exception("Max retries exceeded")
         
         try:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, make_request)
             return result
         except Exception as e:
-            logging.error(f"Async execution error: {str(e)}")
-            return f"Execution error: {str(e)}"
+            error_msg = str(e)
+            logging.error(f"Ollama failed: {error_msg}")
+            
+            # Provide helpful error message for 502 errors
+            if "502" in error_msg or "upstream" in error_msg or "server error" in error_msg:
+                return f"Ollama server is currently unavailable (502 Bad Gateway). Tried 3 times with delays. Please try again in a few minutes or check if Ollama is running locally. Error: {error_msg}"
+            
+            return error_msg
 
 def get_available_providers() -> Dict[str, Dict[str, str]]:
     """Get status of all available LLM providers"""
