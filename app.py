@@ -426,6 +426,7 @@ class ThreatModelingWebApp:
             import tempfile
             import os
             import re
+            from io import BytesIO
             
             # Clean content for PDF
             if isinstance(content, str):
@@ -434,8 +435,8 @@ class ThreatModelingWebApp:
                 safe_content = content
             
             # Remove Mermaid diagrams for PDF (they don't render well)
-            safe_content = re.sub(r'<div class="mermaid">.*?</div>', '[Diagram: Attack Flow Chart]', safe_content, flags=re.DOTALL)
-            safe_content = re.sub(r'<div class="diagram-container">.*?</div>', '[Diagram: Attack Flow Analysis]', safe_content, flags=re.DOTALL)
+            safe_content = re.sub(r'<div class="mermaid">.*?</div>', '<p><strong>[Attack Flow Diagram]</strong></p>', safe_content, flags=re.DOTALL)
+            safe_content = re.sub(r'<div class="diagram-container">.*?</div>', '<p><strong>[Attack Flow Analysis Chart]</strong></p>', safe_content, flags=re.DOTALL)
             
             safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename.replace('.html', '.pdf'))
             
@@ -451,7 +452,7 @@ class ThreatModelingWebApp:
                         margin: 2cm;
                     }}
                     body {{
-                        font-family: 'Arial', sans-serif;
+                        font-family: Arial, sans-serif;
                         background-color: #ffffff;
                         color: #262730;
                         margin: 0;
@@ -513,9 +514,6 @@ class ThreatModelingWebApp:
                     p {{
                         margin: 10px 0;
                     }}
-                    .page-break {{
-                        page-break-before: always;
-                    }}
                 </style>
             </head>
             <body>
@@ -526,20 +524,15 @@ class ThreatModelingWebApp:
             </html>
             """
             
-            # Generate PDF using WeasyPrint
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-                weasyprint.HTML(string=pdf_html).write_pdf(tmp_file.name)
-                
-                # Read PDF content
-                with open(tmp_file.name, 'rb') as pdf_file:
-                    pdf_content = pdf_file.read()
-                
-                # Clean up temp file
-                os.unlink(tmp_file.name)
+            # Generate PDF directly to BytesIO
+            pdf_buffer = BytesIO()
+            weasyprint.HTML(string=pdf_html).write_pdf(pdf_buffer)
+            pdf_content = pdf_buffer.getvalue()
+            pdf_buffer.close()
             
             # Create download link
             b64 = base64.b64encode(pdf_content).decode()
-            href = f'<a href="data:application/pdf;base64,{b64}" download="{safe_filename}">📄 Download PDF Report</a>'
+            href = f'<a href="data:application/pdf;base64,{b64}" download="{safe_filename}">📋 Download Professional Report (PDF)</a>'
             return href
             
         except ImportError:
@@ -644,7 +637,7 @@ class ThreatModelingWebApp:
         """
         
         b64 = base64.b64encode(full_html.encode()).decode()
-        href = f'<a href="data:text/html;base64,{b64}" download="{safe_filename}">📥 Download HTML Report</a>'
+        href = f'<a href="data:text/html;base64,{b64}" download="{safe_filename}">🌐 Download Interactive Report (HTML)</a>'
         return href
     
     def check_rate_limit(self):
