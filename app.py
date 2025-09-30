@@ -420,11 +420,9 @@ class ThreatModelingWebApp:
                     st.markdown("---")
     
     def create_pdf_download(self, content: str, filename: str):
-        """Create PDF download with same format as threat assessment report"""
+        """Create PDF download using Streamlit's download_button"""
         try:
             import weasyprint
-            import tempfile
-            import os
             import re
             from io import BytesIO
             
@@ -530,10 +528,17 @@ class ThreatModelingWebApp:
             pdf_content = pdf_buffer.getvalue()
             pdf_buffer.close()
             
-            # Create download link
-            b64 = base64.b64encode(pdf_content).decode()
-            href = f'<a href="data:application/pdf;base64,{b64}" download="{safe_filename}">📋 Download Professional Report (PDF)</a>'
-            return href
+            # Use Streamlit's download_button instead of data URI
+            if st.download_button(
+                label="📋 Download Professional Report (PDF)",
+                data=pdf_content,
+                file_name=safe_filename,
+                mime="application/pdf",
+                use_container_width=True
+            ):
+                st.success("PDF downloaded successfully!")
+            
+            return ""  # Return empty string since button handles download
             
         except ImportError:
             # Fallback to HTML if WeasyPrint not available
@@ -1257,11 +1262,10 @@ class ThreatModelingWebApp:
                     
                     # PDF Download
                     pdf_filename = f"{safe_product_name}_assessment_{timestamp}.pdf"
-                    pdf_link = self.create_pdf_download(
+                    self.create_pdf_download(
                         st.session_state.report_content, 
                         pdf_filename
                     )
-                    st.markdown(pdf_link, unsafe_allow_html=True)
                     
                     # HTML Download
                     html_filename = f"{safe_product_name}_assessment_{timestamp}.html"
