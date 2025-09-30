@@ -421,17 +421,145 @@ class ThreatModelingWebApp:
     
     def create_pdf_download(self, content: str, filename: str):
         """Create PDF download with same format as threat assessment report"""
+        try:
+            import weasyprint
+            import tempfile
+            import os
+            import re
+            
+            # Clean content for PDF
+            if isinstance(content, str):
+                safe_content = re.sub(r'<(?!/?(?:h[1-6]|p|ul|ol|li|strong|em|div|span|table|tr|td|th|tbody|thead)\b)[^>]*>', '', content)
+            else:
+                safe_content = content
+            
+            # Remove Mermaid diagrams for PDF (they don't render well)
+            safe_content = re.sub(r'<div class="mermaid">.*?</div>', '[Diagram: Attack Flow Chart]', safe_content, flags=re.DOTALL)
+            safe_content = re.sub(r'<div class="diagram-container">.*?</div>', '[Diagram: Attack Flow Analysis]', safe_content, flags=re.DOTALL)
+            
+            safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename.replace('.html', '.pdf'))
+            
+            # Create PDF-optimized HTML
+            pdf_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    @page {{
+                        size: A4;
+                        margin: 2cm;
+                    }}
+                    body {{
+                        font-family: 'Arial', sans-serif;
+                        background-color: #ffffff;
+                        color: #262730;
+                        margin: 0;
+                        padding: 0;
+                        line-height: 1.6;
+                        font-size: 12px;
+                    }}
+                    .report-container {{
+                        width: 100%;
+                        margin: 0;
+                        background: #ffffff;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }}
+                    h1 {{
+                        color: #2c3e50;
+                        border-bottom: 3px solid #667eea;
+                        padding-bottom: 10px;
+                        margin-bottom: 20px;
+                        font-size: 24px;
+                        page-break-after: avoid;
+                    }}
+                    h2 {{
+                        color: #34495e;
+                        margin-top: 30px;
+                        border-left: 4px solid #667eea;
+                        padding-left: 15px;
+                        font-size: 18px;
+                        page-break-after: avoid;
+                    }}
+                    h3 {{
+                        color: #2c3e50;
+                        margin-top: 25px;
+                        font-size: 14px;
+                        page-break-after: avoid;
+                    }}
+                    .critical {{
+                        background-color: #fee;
+                        color: #c53030;
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                        font-weight: bold;
+                    }}
+                    .mitre {{
+                        background-color: #e6f3ff;
+                        color: #1a365d;
+                        padding: 2px 6px;
+                        border-radius: 3px;
+                        font-family: monospace;
+                        font-weight: bold;
+                    }}
+                    ul, ol {{
+                        margin: 10px 0;
+                        padding-left: 20px;
+                    }}
+                    li {{
+                        margin: 5px 0;
+                    }}
+                    p {{
+                        margin: 10px 0;
+                    }}
+                    .page-break {{
+                        page-break-before: always;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="report-container">
+                    {safe_content}
+                </div>
+            </body>
+            </html>
+            """
+            
+            # Generate PDF using WeasyPrint
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+                weasyprint.HTML(string=pdf_html).write_pdf(tmp_file.name)
+                
+                # Read PDF content
+                with open(tmp_file.name, 'rb') as pdf_file:
+                    pdf_content = pdf_file.read()
+                
+                # Clean up temp file
+                os.unlink(tmp_file.name)
+            
+            # Create download link
+            b64 = base64.b64encode(pdf_content).decode()
+            href = f'<a href="data:application/pdf;base64,{b64}" download="{safe_filename}">📄 Download PDF Report</a>'
+            return href
+            
+        except ImportError:
+            # Fallback to HTML if WeasyPrint not available
+            return self.create_html_download(content, filename)
+        except Exception as e:
+            print(f"PDF generation failed: {e}")
+            return self.create_html_download(content, filename)
+    
+    def create_html_download(self, content: str, filename: str):
+        """Create HTML download as fallback"""
         import html
         import re
-        # Escape content to prevent XSS - but preserve safe HTML tags
+        
         if isinstance(content, str):
-            # Allow only safe HTML tags, escape everything else
             safe_content = re.sub(r'<(?!/?(?:h[1-6]|p|ul|ol|li|strong|em|div|span)\b)[^>]*>', '', content)
         else:
             safe_content = content
-        safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)  # Sanitize filename
+        safe_filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
         
-        # Create full HTML with same styling as the report display
         full_html = f"""
         <!DOCTYPE html>
         <html>
@@ -493,10 +621,6 @@ class ThreatModelingWebApp:
                     border: 1px solid #dee2e6;
                     border-radius: 5px;
                 }}
-                .diagram-container {{
-                    margin: 20px 0;
-                    page-break-inside: avoid;
-                }}
             </style>
             <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
         </head>
@@ -504,7 +628,6 @@ class ThreatModelingWebApp:
             <div class="report-container">
                 {safe_content}
             </div>
-            
             <script>
                 mermaid.initialize({{
                     startOnLoad: true,
@@ -520,9 +643,8 @@ class ThreatModelingWebApp:
         </html>
         """
         
-        # Create download link with full HTML including diagrams
         b64 = base64.b64encode(full_html.encode()).decode()
-        href = f'<a href="data:text/html;base64,{b64}" download="{filename}">📥 Download Complete Report (HTML)</a>'
+        href = f'<a href="data:text/html;base64,{b64}" download="{safe_filename}">📥 Download HTML Report</a>'
         return href
     
     def check_rate_limit(self):
@@ -1135,17 +1257,26 @@ class ThreatModelingWebApp:
             if st.session_state.assessment_complete:
                 st.success("✅ Assessment Complete!")
                 
-                # Download button
+                # Download buttons
                 if st.session_state.report_content:
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     safe_product_name = st.session_state.product_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
-                    filename = f"{safe_product_name}_assessment_{timestamp}.html"
                     
-                    download_link = self.create_pdf_download(
+                    # PDF Download
+                    pdf_filename = f"{safe_product_name}_assessment_{timestamp}.pdf"
+                    pdf_link = self.create_pdf_download(
                         st.session_state.report_content, 
-                        filename
+                        pdf_filename
                     )
-                    st.markdown(download_link, unsafe_allow_html=True)
+                    st.markdown(pdf_link, unsafe_allow_html=True)
+                    
+                    # HTML Download
+                    html_filename = f"{safe_product_name}_assessment_{timestamp}.html"
+                    html_link = self.create_html_download(
+                        st.session_state.report_content, 
+                        html_filename
+                    )
+                    st.markdown(html_link, unsafe_allow_html=True)
         
         # Run assessment if in running state
         if st.session_state.get('assessment_running') and not st.session_state.get('assessment_complete'):
